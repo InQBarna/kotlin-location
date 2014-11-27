@@ -3,7 +3,6 @@ package com.inqbarna.iqlocation;
 import android.content.Context;
 import android.location.Location;
 import android.os.Bundle;
-import android.util.Log;
 
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
@@ -111,6 +110,8 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                 }
                 if (!apiClient.isConnected() && !apiClient.isConnecting()) {
                     connectApiClient();
+                } else {
+                    dispatchNewLocation(LocationServices.FusedLocationApi.getLastLocation(apiClient));
                 }
             }
         });
