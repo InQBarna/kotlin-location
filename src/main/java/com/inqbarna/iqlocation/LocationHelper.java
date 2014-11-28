@@ -1,7 +1,10 @@
 package com.inqbarna.iqlocation;
 
 import android.content.Context;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
+import android.location.LocationManager;
 import android.os.Bundle;
 
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -9,8 +12,11 @@ import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 
+import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -18,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
 import rx.Subscriber;
+import rx.functions.Func1;
 
 /**
  * Created by David García <david.garcia@inqbarna.com> on 26/11/14.
@@ -42,6 +49,12 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
     private ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
     private ScheduledFuture<?> sheduledTask;
+    public static Func1<? super Location, Boolean> NOT_NULL = new Func1<Location, Boolean>() {
+        @Override
+        public Boolean call(Location location) {
+            return location != null;
+        }
+    };
 
     private synchronized void dispatchNewLocation(Location location) {
         Iterator<Subscriber<? super Location>> iterator = subscribers.iterator();
@@ -67,6 +80,35 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                 sheduledTask = null;
             }
         }
+    }
+
+    public boolean isLocationEnabled() {
+        LocationManager locationManager = (LocationManager) appContext.getSystemService(Context.LOCATION_SERVICE);
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager
+                .isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+    }
+
+    public Observable<List<Address>> getAddressesAtMyLocation(final int maxResults) {
+        return observable.first(NOT_NULL).map(new Func1<Location, List<Address>>() {
+            @Override
+            public List<Address> call(Location location) {
+                Geocoder geocoder = new Geocoder(appContext);
+                if (!geocoder.isPresent()) {
+                    return Collections.emptyList();
+                }
+
+                try {
+                    List<Address> addresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), maxResults);
+                    if (null == addresses) {
+                        return Collections.emptyList();
+                    } else {
+                        return addresses;
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
     }
 
     public LocationHelper(Context context) {
