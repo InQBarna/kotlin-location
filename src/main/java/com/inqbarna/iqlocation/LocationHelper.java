@@ -31,14 +31,14 @@ import rx.functions.Func1;
  */
 public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
-    private static final long LONGER_INTERVAL_MILLIS = 60 * 60 * 1000; // 60 minutes in millis
-    private static final long FASTEST_INTERVAL_MILLIS = 60 * 1000; // 1 minute in millis
+    public static final long LONGER_INTERVAL_MILLIS  = 60 * 60 * 1000; // 60 minutes in millis
+    public static final long FASTEST_INTERVAL_MILLIS = 60 * 1000; // 1 minute in millis
     private GoogleApiClient apiClient;
-    private Context appContext;
+    private Context         appContext;
 
-    private ArrayList<Subscriber<? super Location>> subscribers;
-    private Observable<Location> observable;
-    private final LocationRequest locationRequest;
+    private       ArrayList<Subscriber<? super Location>> subscribers;
+    private       Observable<Location>                    observable;
+    private final LocationRequest                         locationRequest;
 
     private LocationListener locationListener = new LocationListener() {
         @Override
@@ -112,6 +112,10 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     }
 
     public LocationHelper(Context context) {
+        this(context, LONGER_INTERVAL_MILLIS, FASTEST_INTERVAL_MILLIS);
+    }
+
+    public LocationHelper(Context context, long longerIntervalMillis, long fastestIntervalMillis) {
         this.appContext = context.getApplicationContext();
         GoogleApiClient.Builder builder = new GoogleApiClient.Builder(appContext);
         builder.addApi(LocationServices.API).addConnectionCallbacks(this);
@@ -123,8 +127,8 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
         locationRequest = LocationRequest.create();
         locationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
-                .setInterval(LONGER_INTERVAL_MILLIS)
-                .setFastestInterval(FASTEST_INTERVAL_MILLIS);
+                       .setInterval(longerIntervalMillis)
+                       .setFastestInterval(fastestIntervalMillis);
     }
 
 
