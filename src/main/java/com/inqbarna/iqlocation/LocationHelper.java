@@ -1,10 +1,15 @@
 package com.inqbarna.iqlocation;
 
+import android.content.ContentResolver;
 import android.content.Context;
 import android.location.Address;
 import android.location.Location;
 import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
+import android.text.TextUtils;
+import android.util.Log;
 
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
@@ -12,7 +17,6 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.inqbarna.iqlocation.util.ExecutorServiceScheduler;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -24,9 +28,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
-import rx.Scheduler;
 import rx.Subscriber;
-import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Func1;
 
 /**
@@ -89,9 +91,23 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     }
 
     public boolean isLocationEnabled() {
-        LocationManager locationManager = (LocationManager) appContext.getSystemService(Context.LOCATION_SERVICE);
-        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
+        ContentResolver resolver = appContext.getContentResolver();
+
+        boolean enabled = false;
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
+            String allowed = Settings.Secure.getString(resolver, Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
+            if (!TextUtils.isEmpty(allowed)) {
+                if (allowed.contains(LocationManager.GPS_PROVIDER) || allowed.contains(LocationManager.NETWORK_PROVIDER)) {
+                    enabled = true;
+                }
+            }
+        } else {
+            int mode = Settings.Secure.getInt(resolver, Settings.Secure.LOCATION_MODE, Settings.Secure.LOCATION_MODE_OFF);
+            enabled = mode != Settings.Secure.LOCATION_MODE_OFF;
+        }
+
+        return enabled;
     }
 
     public Observable<List<Address>> getAddressesAtMyLocation(final int maxResults) {
