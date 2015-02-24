@@ -5,7 +5,9 @@ package com.inqbarna.iqlocation;
  */
 import android.location.Address;
 import android.os.Bundle;
+import android.os.Looper;
 import android.util.Log;
+import android.util.SparseArray;
 
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
@@ -29,9 +31,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import rx.Observable;
+
 public class Geocoder {
 
     private static final String TAG = "IQGeocoder";
+    public static final String LOCATION_TYPE = "location_type";
 
     private static boolean DEBUG_PRINT = false;
 
@@ -40,6 +45,10 @@ public class Geocoder {
     }
 
     public static List<Address> getFromLocation(double lat, double lng, int maxResult, String languageCode) {
+
+        if (Looper.getMainLooper().equals(Looper.myLooper())) {
+            throw new IllegalStateException("Cannot run this method from UI thread");
+        }
 
         String address = String.format(
                 Locale.ENGLISH, "http://maps.googleapis.com/maps/api/geocode/json?latlng=%1$f,%2$f&sensor=false&language=" + languageCode,
@@ -79,21 +88,26 @@ public class Geocoder {
 
                         if(result.has("geometry")) {
                             JSONObject geometry = result.getJSONObject("geometry");
-                            if(geometry.has("location_type")) {
-                                String locationType = geometry.getString("location_type");
+                            if(geometry.has(LOCATION_TYPE)) {
+                                String locationType = geometry.getString(LOCATION_TYPE);
                                 Bundle bundle = new Bundle();
-                                bundle.putString("location_type", locationType);
+                                bundle.putString(LOCATION_TYPE, locationType);
                                 addr.setExtras(bundle);
+                            }
+
+                            if (geometry.has("location")) {
+                                final JSONObject location = geometry.getJSONObject("location");
+                                addr.setLatitude(location.getDouble("lat"));
+                                addr.setLongitude(location.getDouble("lng"));
                             }
                         }
 
                         JSONArray components = result.getJSONArray("address_components");
-                        String streetNumber = "";
-                        String route = "";
-                        String iso = "";
-                        String adminArea2 = "";
-                        String city = "";
-                        String adminArea1 = "";
+                        String streetNumber = null;
+                        String route = null;
+
+                        SparseArray<String> adminAreas = new SparseArray<>();
+
                         for (int a = 0; a < components.length(); a++) {
 
                             JSONObject component = components.getJSONObject(a);
@@ -101,42 +115,47 @@ public class Geocoder {
                             for (int j = 0; j < types.length(); j++) {
                                 String type = types.getString(j);
                                 if (type.equals("locality")) {
-                                    city = component.getString("long_name");
                                     addr.setLocality(component.getString("long_name"));
+                                } else if (type.equals("sublocality")) {
+                                    addr.setSubLocality(component.getString("long_name"));
                                 } else if (type.equals("street_number")) {
                                     streetNumber = component.getString("long_name");
                                 } else if (type.equals("route")) {
                                     route = component.getString("long_name");
                                 } else if (type.equals("country")) {
-                                    iso = component.getString("short_name");
+                                    addr.setCountryCode(component.getString("short_name"));
+                                    addr.setCountryName(component.getString("long_name"));
                                 } else if (type.equals("administrative_area_level_2")) {
-                                    adminArea2 = component.getString("long_name");
+                                    adminAreas.put(1, component.getString("long_name"));
                                 } else if (type.equals("administrative_area_level_1")) {
-                                    adminArea1 = component.getString("long_name");
-                                    addr.setAdminArea(adminArea1);
+                                    adminAreas.put(0, component.getString("long_name"));
+                                } else if (type.equals("administrative_area_level_3")) {
+                                    adminAreas.put(2, component.getString("long_name"));
+                                } else if (type.equals("administrative_area_level_4")) {
+                                    adminAreas.put(3, component.getString("long_name"));
                                 }
                             }
                         }
 
-                        addr.setLocality(city);
-                        if(!adminArea2.matches("")){
-                            addr.setSubAdminArea(adminArea2);
-                        }else{
-                            addr.setSubAdminArea(adminArea1);
+
+                        if (adminAreas.size() >= 1) {
+                            addr.setAdminArea(adminAreas.valueAt(0));
                         }
 
-                        addr.setAddressLine(0, route + " " + streetNumber);
-                        addr.setCountryCode(iso);
-                        addr.setLatitude(result.getJSONObject("geometry").getJSONObject("location").getDouble("lat"));
-                        addr.setLongitude(result.getJSONObject("geometry").getJSONObject("location").getDouble("lng"));
+                        if (adminAreas.size() >= 2) {
+                            addr.setSubAdminArea(adminAreas.valueAt(1));
+                        }
+
+                        if (null != route && null != streetNumber) {
+                            addr.setAddressLine(0, route + " " + streetNumber);
+                        }
+
                         retList.add(addr);
                     }
                 }
             }
 
 
-        } catch (ClientProtocolException e) {
-            Log.e(TAG, "Error calling Google geocode webservice.", e);
         } catch (IOException e) {
             Log.e(TAG, "Error calling Google geocode webservice.", e);
         } catch (JSONException e) {
@@ -147,6 +166,11 @@ public class Geocoder {
     }
 
     public static LocationInfo getLatLngBoundsFromCountryName(String countryName) {
+
+        if (Looper.getMainLooper().equals(Looper.myLooper())) {
+            throw new IllegalStateException("Cannot run this method from UI thread");
+        }
+
         try {
             countryName = URLEncoder.encode(countryName, "UTF-8");
         } catch (UnsupportedEncodingException e) {
