@@ -91,6 +91,10 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     }
 
     public boolean isLocationEnabled() {
+        return isLocationEnabled(false);
+    }
+
+    public boolean isLocationEnabled(boolean highAccuracyRequired) {
 
         ContentResolver resolver = appContext.getContentResolver();
 
@@ -98,13 +102,23 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
             String allowed = Settings.Secure.getString(resolver, Settings.Secure.LOCATION_PROVIDERS_ALLOWED);
             if (!TextUtils.isEmpty(allowed)) {
-                if (allowed.contains(LocationManager.GPS_PROVIDER) || allowed.contains(LocationManager.NETWORK_PROVIDER)) {
-                    enabled = true;
+                if (highAccuracyRequired) {
+                    if (allowed.contains(LocationManager.GPS_PROVIDER) && allowed.contains(LocationManager.NETWORK_PROVIDER)) {
+                        enabled = true;
+                    }
+                } else {
+                    if (allowed.contains(LocationManager.GPS_PROVIDER) || allowed.contains(LocationManager.NETWORK_PROVIDER)) {
+                        enabled = true;
+                    }
                 }
             }
         } else {
             int mode = Settings.Secure.getInt(resolver, Settings.Secure.LOCATION_MODE, Settings.Secure.LOCATION_MODE_OFF);
-            enabled = mode != Settings.Secure.LOCATION_MODE_OFF;
+            if (highAccuracyRequired) {
+                enabled = mode == Settings.Secure.LOCATION_MODE_HIGH_ACCURACY;
+            } else {
+                enabled = mode != Settings.Secure.LOCATION_MODE_OFF;
+            }
         }
 
         return enabled;
