@@ -182,6 +182,12 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         observable = Observable.create(new Observable.OnSubscribe<Location>() {
             @Override
             public void call(Subscriber<? super Location> subscriber) {
+
+                if (!isLocationEnabled()) {
+                    subscriber.onCompleted();
+                    return;
+                }
+
                 synchronized (LocationHelper.this) {
                     subscribers.add(subscriber);
                 }
