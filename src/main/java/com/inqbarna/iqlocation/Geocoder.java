@@ -133,6 +133,8 @@ public class Geocoder {
                                     adminAreas.put(2, component.getString("long_name"));
                                 } else if (type.equals("administrative_area_level_4")) {
                                     adminAreas.put(3, component.getString("long_name"));
+                                } else if (type.equals("postal_code")) {
+                                    addr.setPostalCode(component.getString("long_name"));
                                 }
                             }
                         }
