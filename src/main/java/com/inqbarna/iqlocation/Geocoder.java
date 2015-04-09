@@ -35,8 +35,11 @@ import rx.Observable;
 
 public class Geocoder {
 
-    private static final String TAG = "IQGeocoder";
-    public static final String LOCATION_TYPE = "location_type";
+    private static final String TAG                  = "IQGeocoder";
+    public static final  String LOCATION_TYPE        = "location_type";
+    public static final  String LOCATION_ROOFTOP     = "ROOFTOP";
+    public static final  String LOCATION_APPROXIMATE = "APPROXIMATE";
+
 
     private static boolean DEBUG_PRINT = false;
 
@@ -67,8 +70,9 @@ public class Geocoder {
             HttpEntity entity = response.getEntity();
             String json = EntityUtils.toString(entity, "UTF-8");
 
-            if (DEBUG_PRINT)
-                Log.d(TAG,json);
+            if (DEBUG_PRINT) {
+                Log.d(TAG, json);
+            }
 
             JSONObject jsonObject = new JSONObject(json);
 
@@ -80,15 +84,16 @@ public class Geocoder {
                     for (int i = 0; i < results.length() && i < maxResult; i++) {
                         JSONObject result = results.getJSONObject(i);
 
-                        if (DEBUG_PRINT)
+                        if (DEBUG_PRINT) {
                             Log.d(TAG, result.toString());
+                        }
 
                         Address addr = new Address(Locale.getDefault());
                         // addr.setAddressLine(0, result.getString("formatted_address"));
 
-                        if(result.has("geometry")) {
+                        if (result.has("geometry")) {
                             JSONObject geometry = result.getJSONObject("geometry");
-                            if(geometry.has(LOCATION_TYPE)) {
+                            if (geometry.has(LOCATION_TYPE)) {
                                 String locationType = geometry.getString(LOCATION_TYPE);
                                 Bundle bundle = new Bundle();
                                 bundle.putString(LOCATION_TYPE, locationType);
@@ -120,7 +125,7 @@ public class Geocoder {
                                     addr.setSubLocality(component.getString("long_name"));
                                 } else if (type.equals("street_number")) {
                                     streetNumber = component.getString("long_name");
-                                } else if (type.equals("route")) {
+                                } else if (type.equals("route") || type.equals("street_name")) {
                                     route = component.getString("long_name");
                                 } else if (type.equals("country")) {
                                     addr.setCountryCode(component.getString("short_name"));
@@ -178,7 +183,8 @@ public class Geocoder {
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-        String address = "http://maps.googleapis.com/maps/api/geocode/json?address="+countryName+"&sensor=false&language=" + Locale.getDefault().getLanguage();
+        String address = "http://maps.googleapis.com/maps/api/geocode/json?address=" + countryName + "&sensor=false&language=" +
+                Locale.getDefault().getLanguage();
         HttpGet httpGet = new HttpGet(address);
         HttpClient client = new DefaultHttpClient();
         client.getParams().setParameter(AllClientPNames.USER_AGENT, "Mozilla/5.0 (Java) Gecko/20081007 java-geocoder");
@@ -193,8 +199,9 @@ public class Geocoder {
             HttpEntity entity = response.getEntity();
             String json = EntityUtils.toString(entity, "UTF-8");
 
-            if (DEBUG_PRINT)
+            if (DEBUG_PRINT) {
                 Log.d(TAG, json);
+            }
 
             JSONObject jsonObject = new JSONObject(json);
 
@@ -209,18 +216,18 @@ public class Geocoder {
                     for (int i = 0; i < results.length() && i < maxResult; i++) {
                         JSONObject result = results.getJSONObject(i);
 
-                        if(result.has("address_components")){
+                        if (result.has("address_components")) {
 
                             JSONArray address_components = result.getJSONArray("address_components");
-                            for(int x = 0 ; x < address_components.length() ; x++){
+                            for (int x = 0; x < address_components.length(); x++) {
                                 JSONObject element = address_components.getJSONObject(x);
-                                if(element.has("types")){
+                                if (element.has("types")) {
                                     JSONArray array = element.getJSONArray("types");
-                                    for(int y = 0 ; y < array.length() ; y++){
+                                    for (int y = 0; y < array.length(); y++) {
                                         String type = array.getString(y);
-                                        if("country".equals(type)){
+                                        if ("country".equals(type)) {
                                             found = true;
-                                            Log.d("inqgeocoder","found!");
+                                            Log.d("inqgeocoder", "found!");
                                         }
                                     }
                                 }
@@ -231,19 +238,19 @@ public class Geocoder {
                         }
 
 
-                        if(result.has("geometry")){
+                        if (result.has("geometry")) {
                             JSONObject geometry = result.getJSONObject("geometry");
 
-                            if(geometry.has("bounds")){
+                            if (geometry.has("bounds")) {
                                 JSONObject bounds = geometry.getJSONObject("bounds");
 
-                                if(bounds.has("northeast")){
+                                if (bounds.has("northeast")) {
                                     JSONObject northeast = bounds.getJSONObject("northeast");
                                     neLat = northeast.getDouble("lat");
                                     neLng = northeast.getDouble("lng");
                                 }
 
-                                if(bounds.has("southwest")){
+                                if (bounds.has("southwest")) {
                                     JSONObject southwest = bounds.getJSONObject("southwest");
                                     swLat = southwest.getDouble("lat");
                                     swLng = southwest.getDouble("lng");
@@ -252,7 +259,7 @@ public class Geocoder {
 
                             }
 
-                            if(geometry.has("location")){
+                            if (geometry.has("location")) {
                                 JSONObject location = geometry.getJSONObject("location");
                                 lat = location.getDouble("lat");
                                 lng = location.getDouble("lng");
@@ -260,18 +267,20 @@ public class Geocoder {
 
                         }
 
-                        if(found)
+                        if (found) {
                             break;
+                        }
 
                     }
                 }
 
                 LatLngBounds latLngBounds = null;
 
-                if(neLat != 0.0 && neLng != 0.0 && swLat != 0.0 && swLng != 0.0)
-                    latLngBounds = new LatLngBounds(new LatLng(swLat,swLng),new LatLng(neLat,lng));
+                if (neLat != 0.0 && neLng != 0.0 && swLat != 0.0 && swLng != 0.0) {
+                    latLngBounds = new LatLngBounds(new LatLng(swLat, swLng), new LatLng(neLat, lng));
+                }
 
-                locationInfo = new LocationInfo(latLngBounds, new LatLng(lat,lng));
+                locationInfo = new LocationInfo(latLngBounds, new LatLng(lat, lng));
             }
 
 
@@ -286,9 +295,9 @@ public class Geocoder {
 
     public static class LocationInfo {
         LatLngBounds latLngBounds;
-        LatLng latLng;
+        LatLng       latLng;
 
-        public LocationInfo(LatLngBounds latLngBounds, LatLng latLng){
+        public LocationInfo(LatLngBounds latLngBounds, LatLng latLng) {
             this.latLngBounds = latLngBounds;
             this.latLng = latLng;
         }
