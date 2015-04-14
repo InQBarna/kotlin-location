@@ -15,8 +15,10 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.LocationSource;
 import com.inqbarna.iqlocation.util.ExecutorServiceScheduler;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -29,6 +31,9 @@ import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
 import rx.Subscriber;
+import rx.Subscription;
+import rx.functions.Action0;
+import rx.functions.Action1;
 import rx.functions.Func1;
 
 /**
@@ -36,8 +41,10 @@ import rx.functions.Func1;
  */
 public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
+    private static final String TAG = "IQLocation";
     public static final long LONGER_INTERVAL_MILLIS  = 60 * 60 * 1000; // 60 minutes in millis
     public static final long FASTEST_INTERVAL_MILLIS = 60 * 1000; // 1 minute in millis
+
     private GoogleApiClient apiClient;
     private Context         appContext;
 
@@ -240,5 +247,81 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     @Override
     public void onConnectionSuspended(int i) {
 
+    }
+
+    public LocationSource newLocationSource() {
+        return new MapLocationSource(this);
+    }
+
+    private static class MapLocationSource implements LocationSource {
+        private LocationHelper helper;
+        private WeakReference<OnLocationChangedListener> locationChangedListener;
+        private Subscription suscription;
+
+        private MapLocationSource(LocationHelper helper) {
+            this.helper = helper;
+        }
+
+        @Override
+        public void activate(OnLocationChangedListener onLocationChangedListener) {
+            this.locationChangedListener = new WeakReference<>(onLocationChangedListener);
+            suscription = helper.getLocation().filter(
+                    new Func1<Location, Boolean>() {
+                        @Override
+                        public Boolean call(Location location) {
+                            return null != location;
+                        }
+                    }
+            ).subscribe(
+                    new Action1<Location>() {
+                        @Override
+                        public void call(Location location) {
+                            deliverLocation(location);
+                        }
+                    },
+                    new Action1<Throwable>() {
+                        @Override
+                        public void call(Throwable throwable) {
+                            Log.e(TAG, "Error getting location update", throwable);
+                            finishSubscription(false);
+                        }
+                    },
+                    new Action0() {
+                        @Override
+                        public void call() {
+                            finishSubscription(false);
+                        }
+                    }
+            );
+        }
+
+        private void finishSubscription(boolean unsubscribe) {
+            if (null != suscription) {
+                if (unsubscribe) {
+                    suscription.unsubscribe();
+                }
+                suscription = null;
+            }
+        }
+
+        private void deliverLocation(Location location) {
+            if (null != locationChangedListener) {
+                Log.d(TAG, "Delivering new location: " + location);
+                final OnLocationChangedListener onLocationChangedListener = locationChangedListener.get();
+                if (onLocationChangedListener != null) {
+                    onLocationChangedListener.onLocationChanged(location);
+                } else {
+                    Log.d(TAG, "But no receptor ready");
+                    finishSubscription(true);
+                    locationChangedListener = null;
+                }
+            }
+        }
+
+        @Override
+        public void deactivate() {
+            finishSubscription(true);
+            locationChangedListener = null;
+        }
     }
 }
