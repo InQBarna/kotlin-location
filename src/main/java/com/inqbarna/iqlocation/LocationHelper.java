@@ -18,7 +18,6 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.LocationSource;
 import com.inqbarna.iqlocation.util.ExecutorServiceScheduler;
 
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -41,9 +40,9 @@ import rx.functions.Func1;
  */
 public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
-    private static final String TAG = "IQLocation";
-    public static final long LONGER_INTERVAL_MILLIS  = 60 * 60 * 1000; // 60 minutes in millis
-    public static final long FASTEST_INTERVAL_MILLIS = 60 * 1000; // 1 minute in millis
+    private static final String TAG                     = "IQLocation";
+    public static final  long   LONGER_INTERVAL_MILLIS  = 60 * 60 * 1000; // 60 minutes in millis
+    public static final  long   FASTEST_INTERVAL_MILLIS = 60 * 1000; // 1 minute in millis
 
     private GoogleApiClient apiClient;
     private Context         appContext;
@@ -147,6 +146,25 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
                     }
                 });
+    }
+
+    public Observable<List<Address>> getAddressesAtLocation(Location location, final int maxResults) {
+        return Observable.just(location).observeOn(rxScheduler).map(
+                new Func1<Location, List<Address>>() {
+                    @Override
+                    public List<Address> call(Location location) {
+                        List<Address> addresses = Geocoder.getFromLocation(
+                                location.getLatitude(), location.getLongitude(), maxResults, Locale.getDefault().getLanguage());
+
+                        if (null == addresses) {
+                            return Collections.emptyList();
+                        } else {
+                            return addresses;
+                        }
+
+                    }
+                }
+        );
     }
 
     public LocationHelper(Context context) {
@@ -255,7 +273,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
     private static class MapLocationSource implements LocationSource {
         private LocationHelper helper;
-        private WeakReference<OnLocationChangedListener> locationChangedListener;
+        private OnLocationChangedListener locationChangedListener;
         private Subscription suscription;
 
         private MapLocationSource(LocationHelper helper) {
@@ -264,7 +282,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
         @Override
         public void activate(OnLocationChangedListener onLocationChangedListener) {
-            this.locationChangedListener = new WeakReference<>(onLocationChangedListener);
+            this.locationChangedListener = onLocationChangedListener;
             suscription = helper.getLocation().filter(
                     new Func1<Location, Boolean>() {
                         @Override
@@ -307,14 +325,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         private void deliverLocation(Location location) {
             if (null != locationChangedListener) {
                 Log.d(TAG, "Delivering new location: " + location);
-                final OnLocationChangedListener onLocationChangedListener = locationChangedListener.get();
-                if (onLocationChangedListener != null) {
-                    onLocationChangedListener.onLocationChanged(location);
-                } else {
-                    Log.d(TAG, "But no receptor ready");
-                    finishSubscription(true);
-                    locationChangedListener = null;
-                }
+                locationChangedListener.onLocationChanged(location);
             }
         }
 

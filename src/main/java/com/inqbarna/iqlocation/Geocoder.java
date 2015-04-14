@@ -56,6 +56,10 @@ public class Geocoder {
         String address = String.format(
                 Locale.ENGLISH, "http://maps.googleapis.com/maps/api/geocode/json?latlng=%1$f,%2$f&sensor=false&language=" + languageCode,
                 lat, lng);
+
+        if (DEBUG_PRINT) {
+            Log.d(TAG, "Geocoder request: " + address);
+        }
         HttpGet httpGet = new HttpGet(address);
         HttpClient client = new DefaultHttpClient();
         client.getParams().setParameter(AllClientPNames.USER_AGENT, "Mozilla/5.0 (Java) Gecko/20081007 java-geocoder");
@@ -69,10 +73,6 @@ public class Geocoder {
             response = client.execute(httpGet);
             HttpEntity entity = response.getEntity();
             String json = EntityUtils.toString(entity, "UTF-8");
-
-            if (DEBUG_PRINT) {
-                Log.d(TAG, json);
-            }
 
             JSONObject jsonObject = new JSONObject(json);
 
@@ -89,7 +89,11 @@ public class Geocoder {
                         }
 
                         Address addr = new Address(Locale.getDefault());
-                        // addr.setAddressLine(0, result.getString("formatted_address"));
+                        /*String formattedAddress = null;
+                        if (result.has("formatted_address")) {
+                            formattedAddress = result.getString("formatted_address");
+                        }
+                        */
 
                         if (result.has("geometry")) {
                             JSONObject geometry = result.getJSONObject("geometry");
