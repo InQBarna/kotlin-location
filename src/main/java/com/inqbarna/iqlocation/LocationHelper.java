@@ -18,6 +18,7 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.LocationSource;
 import com.inqbarna.iqlocation.util.ExecutorServiceScheduler;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -272,9 +273,9 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     }
 
     private static class MapLocationSource implements LocationSource {
-        private LocationHelper helper;
-        private OnLocationChangedListener locationChangedListener;
-        private Subscription suscription;
+        private LocationHelper                           helper;
+        private WeakReference<OnLocationChangedListener> locationChangedListener;
+        private Subscription                             suscription;
 
         private MapLocationSource(LocationHelper helper) {
             this.helper = helper;
@@ -282,7 +283,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
         @Override
         public void activate(OnLocationChangedListener onLocationChangedListener) {
-            this.locationChangedListener = onLocationChangedListener;
+            this.locationChangedListener = new WeakReference<OnLocationChangedListener>(onLocationChangedListener);
             suscription = helper.getLocation().filter(
                     new Func1<Location, Boolean>() {
                         @Override
@@ -324,8 +325,13 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
         private void deliverLocation(Location location) {
             if (null != locationChangedListener) {
-                Log.d(TAG, "Delivering new location: " + location);
-                locationChangedListener.onLocationChanged(location);
+                final OnLocationChangedListener onLocationChangedListener = locationChangedListener.get();
+                if (null != onLocationChangedListener) {
+                    Log.d(TAG, "Delivering new location: " + location);
+                    onLocationChangedListener.onLocationChanged(location);
+                } else {
+                    deactivate();
+                }
             }
         }
 
