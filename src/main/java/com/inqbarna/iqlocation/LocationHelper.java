@@ -30,6 +30,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
+import rx.Observer;
+import rx.Producer;
 import rx.Subscriber;
 import rx.Subscription;
 import rx.functions.Action0;
@@ -44,6 +46,8 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     private static final String TAG                     = "IQLocation";
     public static final  long   LONGER_INTERVAL_MILLIS  = 60 * 60 * 1000; // 60 minutes in millis
     public static final  long   FASTEST_INTERVAL_MILLIS = 60 * 1000; // 1 minute in millis
+
+    private static boolean DEBUG = false;
 
     private GoogleApiClient apiClient;
     private Context         appContext;
@@ -71,18 +75,29 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     };
 
 
+    public static final void setDebug(boolean enable) {
+        DEBUG = enable;
+    }
+
     private synchronized void dispatchNewLocation(Location location) {
+        int count = 0;
         Iterator<Subscriber<? super Location>> iterator = subscribers.iterator();
         while (iterator.hasNext()) {
             final Subscriber<? super Location> subscriber = iterator.next();
             if (!subscriber.isUnsubscribed()) {
+                count++;
                 subscriber.onNext(location);
             } else {
                 iterator.remove();
             }
         }
 
+        if (DEBUG) {
+            Log.d(TAG, "Location " + location + " delivered to " + count + " subscribers");
+        }
+
         if (subscribers.isEmpty()) {
+            if (DEBUG) Log.d(TAG, "No more subscribers, LocationHelper will disconnect");
             endClient();
         }
     }
@@ -210,14 +225,18 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
             public void call(Subscriber<? super Location> subscriber) {
 
                 if (!isLocationEnabled()) {
+                    if (DEBUG) Log.d(TAG, "Trying to subscribe to location, but it's disabled... finishing");
                     subscriber.onCompleted();
                     return;
+                } else if (DEBUG) {
+                    Log.d(TAG, "Subscribed to getLocation");
                 }
 
                 synchronized (LocationHelper.this) {
                     subscribers.add(subscriber);
                 }
                 if (!apiClient.isConnected() && !apiClient.isConnecting()) {
+                    if (DEBUG) Log.d(TAG, "Will connect to Google Api Client");
                     connectApiClient();
                 } else {
                     dispatchNewLocation(LocationServices.FusedLocationApi.getLastLocation(apiClient));
@@ -245,6 +264,8 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     @Override
     public void onConnected(Bundle bundle) {
         if (!checkSubscriversAlive()) {
+            if (DEBUG) Log.d(TAG, "Connected but no one subscribed, will disconnect");
+
             endClient();
         } else {
             dispatchNewLocation(LocationServices.FusedLocationApi.getLastLocation(apiClient));
@@ -272,18 +293,76 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         return new MapLocationSource(this);
     }
 
+    private static class OnLocationHolder {
+        private LocationSource.OnLocationChangedListener                nonWeakListener;
+        private WeakReference<LocationSource.OnLocationChangedListener> locationChangedListener;
+
+        public OnLocationHolder(LocationSource.OnLocationChangedListener listener, boolean asWeak) {
+            if (asWeak) {
+                locationChangedListener = new WeakReference<LocationSource.OnLocationChangedListener>(listener);
+            } else {
+                nonWeakListener = listener;
+            }
+        }
+
+        public boolean isWeak() {
+            return null != locationChangedListener;
+        }
+
+        public boolean isValid() {
+            if (null != locationChangedListener) {
+                return locationChangedListener.get() != null;
+            } else {
+                return nonWeakListener != null;
+            }
+        }
+
+        public void onLocationChanged(Location location) {
+            if (isWeak()) {
+                LocationSource.OnLocationChangedListener l = locationChangedListener.get();
+                if (null != l) {
+                    if (DEBUG) Log.d(TAG, "Delivering new location: " + location);
+                    l.onLocationChanged(location);
+                } else if (DEBUG) {
+                    Log.d(TAG, "Cannot deliver location because weak reference has vanished");
+                }
+            } else if (null != nonWeakListener) {
+                if (DEBUG) Log.d(TAG, "Delivering new location: " + location);
+                nonWeakListener.onLocationChanged(location);
+            }
+        }
+    }
+
+
     private static class MapLocationSource implements LocationSource {
-        private LocationHelper                           helper;
-        private WeakReference<OnLocationChangedListener> locationChangedListener;
-        private Subscription                             suscription;
+        private LocationHelper helper;
+
+        private Subscription     suscription;
+        private boolean          activated;
+        private int              count;
+        private OnLocationHolder holder;
+
+
+        private final long MAX_MS = 5000;
 
         private MapLocationSource(LocationHelper helper) {
             this.helper = helper;
         }
 
         @Override
-        public void activate(OnLocationChangedListener onLocationChangedListener) {
-            this.locationChangedListener = new WeakReference<OnLocationChangedListener>(onLocationChangedListener);
+        public synchronized void activate(OnLocationChangedListener onLocationChangedListener) {
+            if (!activated) {
+                count = 0;
+                activated = true;
+                if (DEBUG) Log.d(TAG, "Activating " + this + " with " + onLocationChangedListener);
+                holder = new OnLocationHolder(onLocationChangedListener, false);
+                beginGettingUpdates();
+            } else if (DEBUG) {
+                Log.w(TAG, "Tryied to activate twice... ");
+            }
+        }
+
+        private void beginGettingUpdates() {
             suscription = helper.getLocation().filter(
                     new Func1<Location, Boolean>() {
                         @Override
@@ -303,15 +382,52 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                         public void call(Throwable throwable) {
                             Log.e(TAG, "Error getting location update", throwable);
                             finishSubscription(false);
+                            scheduleRetry();
                         }
                     },
                     new Action0() {
                         @Override
                         public void call() {
                             finishSubscription(false);
+                            scheduleRetry();
                         }
                     }
             );
+        }
+
+        private void scheduleRetry() {
+            if (isActivated()) {
+                if (count != Integer.MAX_VALUE) {
+                    count++;
+                }
+
+                long val = (2 * (count - 1)) * 100;
+                if (val >= MAX_MS) {
+                    val = MAX_MS;
+                }
+
+                if (DEBUG)
+                    Log.d(TAG, "Will retry in " + val + " ms");
+
+                helper.executorService.schedule(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                if (isActivated()) {
+                                    if (DEBUG)
+                                        Log.d(TAG, "Retrying to connect the location source");
+                                    beginGettingUpdates();
+                                }
+                            }
+                        },
+                        val,
+                        TimeUnit.MILLISECONDS
+                );
+            }
+        }
+
+        private synchronized boolean isActivated() {
+            return activated;
         }
 
         private void finishSubscription(boolean unsubscribe) {
@@ -324,11 +440,9 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         }
 
         private void deliverLocation(Location location) {
-            if (null != locationChangedListener) {
-                final OnLocationChangedListener onLocationChangedListener = locationChangedListener.get();
-                if (null != onLocationChangedListener) {
-                    Log.d(TAG, "Delivering new location: " + location);
-                    onLocationChangedListener.onLocationChanged(location);
+            if (null != holder) {
+                if (holder.isValid()) {
+                    holder.onLocationChanged(location);
                 } else {
                     deactivate();
                 }
@@ -336,9 +450,12 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         }
 
         @Override
-        public void deactivate() {
+        public synchronized void deactivate() {
+            if (DEBUG)
+                Log.d(TAG, "Deactivating... " + this);
             finishSubscription(true);
-            locationChangedListener = null;
+            holder = null;
+            activated = false;
         }
     }
 }
