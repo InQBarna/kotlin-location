@@ -11,6 +11,7 @@ import android.util.SparseArray;
 
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
+import com.inqbarna.iqlocation.util.GeocoderError;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -78,7 +79,8 @@ public class Geocoder {
 
             retList = new ArrayList<Address>();
 
-            if ("OK".equalsIgnoreCase(jsonObject.getString("status"))) {
+            final String status = jsonObject.getString("status");
+            if ("OK".equalsIgnoreCase(status)) {
                 JSONArray results = jsonObject.getJSONArray("results");
                 if (results.length() > 0) {
                     for (int i = 0; i < results.length() && i < maxResult; i++) {
@@ -164,13 +166,19 @@ public class Geocoder {
                         retList.add(addr);
                     }
                 }
+            } else {
+                throw new GeocoderError(status);
             }
-
 
         } catch (IOException e) {
             Log.e(TAG, "Error calling Google geocode webservice.", e);
+            throw new GeocoderError("Error calling Google geocode webservice " + e.getMessage(), null); // because somehow stacktrace not printing
         } catch (JSONException e) {
             Log.e(TAG, "Error parsing Google geocode webservice response.", e);
+            throw new GeocoderError("Error parsing Google geocode webservice response.", e);
+        } catch (Exception e) {
+            Log.e(TAG, "Unknown error in geocoder", e);
+            throw new GeocoderError("Unknown error in geocoder" + e.getMessage(), null);
         }
 
         return retList;

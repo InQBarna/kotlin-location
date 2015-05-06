@@ -16,7 +16,9 @@ import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.LocationSource;
+import com.inqbarna.iqlocation.util.ErrorHandler;
 import com.inqbarna.iqlocation.util.ExecutorServiceScheduler;
+import com.inqbarna.iqlocation.util.GeocoderError;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -66,6 +68,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     private ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
     private ScheduledFuture<?> sheduledTask;
     private ExecutorServiceScheduler rxScheduler = new ExecutorServiceScheduler(executorService);
+    private ErrorHandler globalErrorWatch;
 
     public static Func1<? super Location, Boolean> NOT_NULL = new Func1<Location, Boolean>() {
         @Override
@@ -97,7 +100,8 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         }
 
         if (subscribers.isEmpty()) {
-            if (DEBUG) Log.d(TAG, "No more subscribers, LocationHelper will disconnect");
+            if (DEBUG)
+                Log.d(TAG, "No more subscribers, LocationHelper will disconnect");
             endClient();
         }
     }
@@ -110,6 +114,10 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                 sheduledTask = null;
             }
         }
+    }
+
+    public void setGlobalErrorWatch(ErrorHandler errorWatch) {
+        this.globalErrorWatch = errorWatch;
     }
 
     public boolean isLocationEnabled() {
@@ -148,39 +156,40 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
     public Observable<List<Address>> getAddressesAtMyLocation(final int maxResults) {
         return observable.first(NOT_NULL).observeOn(rxScheduler).map(
-                new Func1<Location, List<Address>>() {
-                    @Override
-                    public List<Address> call(Location location) {
-                        List<Address> addresses = Geocoder.getFromLocation(
-                                location.getLatitude(), location.getLongitude(), maxResults, Locale.getDefault().getLanguage());
-
-                        if (null == addresses) {
-                            return Collections.emptyList();
-                        } else {
-                            return addresses;
-                        }
-
-                    }
-                });
+                getLocationToAddressesConverter(maxResults));
     }
 
     public Observable<List<Address>> getAddressesAtLocation(Location location, final int maxResults) {
         return Observable.just(location).observeOn(rxScheduler).map(
-                new Func1<Location, List<Address>>() {
-                    @Override
-                    public List<Address> call(Location location) {
-                        List<Address> addresses = Geocoder.getFromLocation(
-                                location.getLatitude(), location.getLongitude(), maxResults, Locale.getDefault().getLanguage());
+                getLocationToAddressesConverter(maxResults)
+        );
+    }
 
-                        if (null == addresses) {
-                            return Collections.emptyList();
-                        } else {
-                            return addresses;
+    private Func1<Location, List<Address>> getLocationToAddressesConverter(final int maxResults) {
+        return new Func1<Location, List<Address>>() {
+            @Override
+            public List<Address> call(Location location) {
+
+                List<Address> addresses = null;
+                try {
+                    addresses = Geocoder.getFromLocation(
+                            location.getLatitude(), location.getLongitude(), maxResults, Locale.getDefault().getLanguage());
+                } catch (GeocoderError error) {
+                    if (null != globalErrorWatch) {
+                        if (!globalErrorWatch.chanceToInterceptGeocoderError(error)) {
+                            throw error;
                         }
-
                     }
                 }
-        );
+
+                if (null == addresses) {
+                    return Collections.emptyList();
+                } else {
+                    return addresses;
+                }
+
+            }
+        };
     }
 
     public LocationHelper(Context context) {
