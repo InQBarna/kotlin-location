@@ -3,6 +3,7 @@ package com.inqbarna.iqlocation;
 /**
  * Created by oriolfarrus on 13/02/15.
  */
+
 import android.location.Address;
 import android.os.Bundle;
 import android.os.Looper;
@@ -15,7 +16,6 @@ import com.inqbarna.iqlocation.util.GeocoderError;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.params.AllClientPNames;
@@ -31,8 +31,6 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-
-import rx.Observable;
 
 public class Geocoder {
 
@@ -197,6 +195,10 @@ public class Geocoder {
 
         String address = "http://maps.googleapis.com/maps/api/geocode/json?address=" + addressName + "&sensor=false&language=" +
                 Locale.getDefault().getLanguage();
+
+        if (DEBUG_PRINT) {
+            Log.d(TAG, "Will request: " + address);
+        }
         HttpGet httpGet = new HttpGet(address);
         HttpClient client = new DefaultHttpClient();
         client.getParams().setParameter(AllClientPNames.USER_AGENT, "Mozilla/5.0 (Java) Gecko/20081007 java-geocoder");
@@ -307,6 +309,10 @@ public class Geocoder {
         }
         String address = "http://maps.googleapis.com/maps/api/geocode/json?address=" + countryName + "&sensor=false&language=" +
                 Locale.getDefault().getLanguage();
+
+        if (DEBUG_PRINT) {
+            Log.d(TAG, "Requesting " + address);
+        }
         HttpGet httpGet = new HttpGet(address);
         HttpClient client = new DefaultHttpClient();
         client.getParams().setParameter(AllClientPNames.USER_AGENT, "Mozilla/5.0 (Java) Gecko/20081007 java-geocoder");
