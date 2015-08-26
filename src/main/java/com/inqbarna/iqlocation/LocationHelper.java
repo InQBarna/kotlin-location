@@ -48,6 +48,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     private static final String TAG                     = "IQLocation";
     public static final  long   LONGER_INTERVAL_MILLIS  = 60 * 60 * 1000; // 60 minutes in millis
     public static final  long   FASTEST_INTERVAL_MILLIS = 60 * 1000; // 1 minute in millis
+    public static final int CHECK_INTERVAL_SECS = 5;
 
     private static boolean DEBUG = false;
 
@@ -78,11 +79,11 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     };
 
 
-    public static final void setDebug(boolean enable) {
+    public static void setDebug(boolean enable) {
         DEBUG = enable;
     }
 
-    private synchronized void dispatchNewLocation(Location location) {
+    private synchronized boolean dispatchNewLocation(Location location) {
         int count = 0;
         Iterator<Subscriber<? super Location>> iterator = subscribers.iterator();
         while (iterator.hasNext()) {
@@ -104,9 +105,25 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                 Log.d(TAG, "No more subscribers, LocationHelper will disconnect");
             endClient();
         }
+        return !subscribers.isEmpty();
+    }
+
+    private synchronized void dispatchCompleted() {
+        Iterator<Subscriber<? super Location>> iterator = subscribers.iterator();
+        while (iterator.hasNext()) {
+            final Subscriber<? super Location> subscriber = iterator.next();
+            if (!subscriber.isUnsubscribed()) {
+                subscriber.onCompleted();
+            }
+            iterator.remove();
+        }
     }
 
     private void endClient() {
+        if (apiClient.isConnecting()) {
+            if (DEBUG) Log.d(TAG, "Tried disconnect while still connecting... ignore");
+            return;
+        }
         apiClient.disconnect();
         synchronized (this) {
             if (null != sheduledTask) {
@@ -265,7 +282,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                             endClient();
                         }
                     }
-                }, 1, 1, TimeUnit.SECONDS);
+                }, CHECK_INTERVAL_SECS, CHECK_INTERVAL_SECS, TimeUnit.SECONDS);
             }
         }
     }
@@ -277,8 +294,17 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
             endClient();
         } else {
-            dispatchNewLocation(LocationServices.FusedLocationApi.getLastLocation(apiClient));
-            LocationServices.FusedLocationApi.requestLocationUpdates(apiClient, locationRequest, locationListener);
+            if (!apiClient.isConnected()) {
+                // we may have issued disconnect while connecting, because unsubscriptions maybe...
+                if (DEBUG) Log.d(TAG, "onConnected called, but client disconnected");
+                dispatchCompleted(); // probably not needed?
+                return;
+            }
+            boolean alive = dispatchNewLocation(LocationServices.FusedLocationApi.getLastLocation(apiClient));
+            if (alive) {
+                // maybe we get disconnected inside dispatch
+                LocationServices.FusedLocationApi.requestLocationUpdates(apiClient, locationRequest, locationListener);
+            }
         }
     }
 
