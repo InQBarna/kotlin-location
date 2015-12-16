@@ -1,13 +1,16 @@
 package com.inqbarna.iqlocation;
 
+import android.Manifest;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -144,6 +147,17 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     public boolean isLocationEnabled(boolean highAccuracyRequired) {
 
         ContentResolver resolver = appContext.getContentResolver();
+
+        // Check permission first
+        if (highAccuracyRequired) {
+            if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
 
         boolean enabled = false;
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {

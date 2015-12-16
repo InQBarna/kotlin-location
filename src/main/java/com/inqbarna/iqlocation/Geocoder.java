@@ -10,17 +10,13 @@ import android.os.Looper;
 import android.util.Log;
 import android.util.SparseArray;
 
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.LatLngBounds;
 import com.inqbarna.iqlocation.util.GeocoderError;
+import com.squareup.okhttp.Call;
+import com.squareup.okhttp.HttpUrl;
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
+import com.squareup.okhttp.Response;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.params.AllClientPNames;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.util.EntityUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -31,6 +27,8 @@ import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.LatLng;
 
 public class Geocoder {
 
@@ -59,21 +57,23 @@ public class Geocoder {
         if (DEBUG_PRINT) {
             Log.d(TAG, "Geocoder request: " + address);
         }
-        HttpGet httpGet = new HttpGet(address);
-        HttpClient client = new DefaultHttpClient();
-        client.getParams().setParameter(AllClientPNames.USER_AGENT, "Mozilla/5.0 (Java) Gecko/20081007 java-geocoder");
-        client.getParams().setIntParameter(AllClientPNames.CONNECTION_TIMEOUT, 5 * 1000);
-        client.getParams().setIntParameter(AllClientPNames.SO_TIMEOUT, 25 * 1000);
-        HttpResponse response;
+
+
+        OkHttpClient client = new OkHttpClient();
+
+        Request.Builder builder = new Request.Builder();
+
+        builder.get().url(HttpUrl.parse(address));
+        final Call call = client.newCall(builder.build());
+
+//        client.getParams().setParameter(AllClientPNames.USER_AGENT, "Mozilla/5.0 (Java) Gecko/20081007 java-geocoder");
+
 
         List<Address> retList = null;
 
         try {
-            response = client.execute(httpGet);
-            HttpEntity entity = response.getEntity();
-            String json = EntityUtils.toString(entity, "UTF-8");
-
-            JSONObject jsonObject = new JSONObject(json);
+            final Response response = call.execute();
+            JSONObject jsonObject = new JSONObject(response.body().string());
 
             retList = new ArrayList<Address>();
 
@@ -199,19 +199,17 @@ public class Geocoder {
         if (DEBUG_PRINT) {
             Log.d(TAG, "Will request: " + address);
         }
-        HttpGet httpGet = new HttpGet(address);
-        HttpClient client = new DefaultHttpClient();
-        client.getParams().setParameter(AllClientPNames.USER_AGENT, "Mozilla/5.0 (Java) Gecko/20081007 java-geocoder");
-        client.getParams().setIntParameter(AllClientPNames.CONNECTION_TIMEOUT, 5 * 1000);
-        client.getParams().setIntParameter(AllClientPNames.SO_TIMEOUT, 25 * 1000);
-        HttpResponse response;
+
+        OkHttpClient client = new OkHttpClient();
+
+        //        client.getParams().setParameter(AllClientPNames.USER_AGENT, "Mozilla/5.0 (Java) Gecko/20081007 java-geocoder");
+        final Call call = client.newCall(new Request.Builder().get().url(HttpUrl.parse(address)).build());
 
         LocationInfo locationInfo = null;
 
         try {
-            response = client.execute(httpGet);
-            HttpEntity entity = response.getEntity();
-            String json = EntityUtils.toString(entity, "UTF-8");
+            final Response response = call.execute();
+            String json = response.body().string();
 
             if (DEBUG_PRINT) {
                 Log.d(TAG, json);
@@ -313,19 +311,17 @@ public class Geocoder {
         if (DEBUG_PRINT) {
             Log.d(TAG, "Requesting " + address);
         }
-        HttpGet httpGet = new HttpGet(address);
-        HttpClient client = new DefaultHttpClient();
-        client.getParams().setParameter(AllClientPNames.USER_AGENT, "Mozilla/5.0 (Java) Gecko/20081007 java-geocoder");
-        client.getParams().setIntParameter(AllClientPNames.CONNECTION_TIMEOUT, 5 * 1000);
-        client.getParams().setIntParameter(AllClientPNames.SO_TIMEOUT, 25 * 1000);
-        HttpResponse response;
+//        client.getParams().setParameter(AllClientPNames.USER_AGENT, "Mozilla/5.0 (Java) Gecko/20081007 java-geocoder");
+
+        OkHttpClient client = new OkHttpClient();
+
+        Call call = client.newCall(new Request.Builder().get().url(HttpUrl.parse(address)).build());
 
         LocationInfo locationInfo = null;
 
         try {
-            response = client.execute(httpGet);
-            HttpEntity entity = response.getEntity();
-            String json = EntityUtils.toString(entity, "UTF-8");
+            final Response response = call.execute();
+            String json = response.body().string();
 
             if (DEBUG_PRINT) {
                 Log.d(TAG, json);
