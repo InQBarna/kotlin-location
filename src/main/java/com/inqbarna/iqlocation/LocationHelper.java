@@ -35,8 +35,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
-import rx.Observer;
-import rx.Producer;
 import rx.Subscriber;
 import rx.Subscription;
 import rx.functions.Action0;
@@ -136,26 +134,30 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         }
     }
 
+    public static final int ENABLED       = 0;
+    public static final int NO_PERMISSION = 1;
+    public static final int DISABLED      = 2;
+
     public void setGlobalErrorWatch(ErrorHandler errorWatch) {
         this.globalErrorWatch = errorWatch;
     }
 
-    public boolean isLocationEnabled() {
+    public int isLocationEnabled() {
         return isLocationEnabled(false);
     }
 
-    public boolean isLocationEnabled(boolean highAccuracyRequired) {
+    public int isLocationEnabled(boolean highAccuracyRequired) {
 
         ContentResolver resolver = appContext.getContentResolver();
 
         // Check permission first
         if (highAccuracyRequired) {
             if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                return false;
+                return NO_PERMISSION;
             }
         } else {
             if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                return false;
+                return NO_PERMISSION;
             }
         }
 
@@ -182,7 +184,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
             }
         }
 
-        return enabled;
+        return enabled ? ENABLED : DISABLED;
     }
 
     public Observable<List<Address>> getAddressesAtMyLocation(final int maxResults) {
@@ -264,7 +266,11 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
             @Override
             public void call(Subscriber<? super Location> subscriber) {
 
-                if (!isLocationEnabled()) {
+
+                final int locationEnabled = isLocationEnabled();
+                if (locationEnabled == NO_PERMISSION) {
+                    subscriber.onError(new NoPermissionError("You don't have required permissions, make sure to request them first"));
+                } else if (locationEnabled != ENABLED) {
                     if (DEBUG) Log.d(TAG, "Trying to subscribe to location, but it's disabled... finishing");
                     subscriber.onCompleted();
                     return;
@@ -407,7 +413,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                 holder = new OnLocationHolder(onLocationChangedListener, false);
                 beginGettingUpdates();
             } else if (DEBUG) {
-                Log.w(TAG, "Tryied to activate twice... ");
+                Log.w(TAG, "Tried to activate twice... ");
             }
         }
 
@@ -431,7 +437,11 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                         public void call(Throwable throwable) {
                             Log.e(TAG, "Error getting location update", throwable);
                             finishSubscription(false);
-                            scheduleRetry();
+                            if (throwable instanceof NoPermissionError) {
+                                // do not retry in this case
+                            } else {
+                                scheduleRetry();
+                            }
                         }
                     },
                     new Action0() {
@@ -505,6 +515,16 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
             finishSubscription(true);
             holder = null;
             activated = false;
+        }
+    }
+
+    /**
+     * @author David García <david.garcia@inqbarna.com>
+     * @version 1.0 17/12/15
+     */
+    public static class NoPermissionError extends Error {
+        public NoPermissionError(String detailMessage) {
+            super(detailMessage);
         }
     }
 }
