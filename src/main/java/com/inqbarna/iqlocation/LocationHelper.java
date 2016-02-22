@@ -63,6 +63,61 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         }
     };
 
+    public static class Builder {
+        private Context context;
+        private LocationRequest request;
+
+        public Builder(Context context) {
+            this.context = context;
+            this.request = LocationRequest.create().setFastestInterval(FASTEST_INTERVAL_MILLIS).setInterval(LONGER_INTERVAL_MILLIS)
+                                          .setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+
+        }
+
+        public Builder setPriority(int priority) {
+            request.setPriority(priority);
+            return this;
+        }
+
+        public Builder setExpirationDuration(long millis) {
+            request.setExpirationDuration(millis);
+            return this;
+        }
+
+        public Builder setExpirationTime(long millis) {
+            request.setExpirationTime(millis);
+            return this;
+        }
+
+        public Builder setFastestInterval(long millis) {
+            request.setFastestInterval(millis);
+            return this;
+        }
+
+        public Builder setInterval(long millis) {
+            request.setInterval(millis);
+            return this;
+        }
+
+        public Builder setNumUpdates(int numUpdates) {
+            request.setNumUpdates(numUpdates);
+            return this;
+        }
+
+        public Builder setSmallestDisplacement(float smallestDisplacementMeters) {
+            request.setSmallestDisplacement(smallestDisplacementMeters);
+            return this;
+        }
+
+        public LocationHelper build() {
+            return new LocationHelper(context, request);
+        }
+    }
+
+    public static Builder builder(Context ctxt) {
+        return new Builder(ctxt);
+    }
+
 
     private synchronized void dispatchNewLocation(Location location) {
         Iterator<Subscriber<? super Location>> iterator = subscribers.iterator();
@@ -160,6 +215,18 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         locationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
                        .setInterval(longerIntervalMillis)
                        .setFastestInterval(fastestIntervalMillis);
+    }
+
+    private LocationHelper(Context context, LocationRequest request) {
+        this.appContext = context.getApplicationContext();
+        GoogleApiClient.Builder builder = new GoogleApiClient.Builder(appContext);
+        builder.addApi(LocationServices.API).addConnectionCallbacks(this);
+
+        apiClient = builder.build();
+
+        subscribers = new ArrayList<>();
+        createObservable();
+        this.locationRequest = request;
     }
 
 
