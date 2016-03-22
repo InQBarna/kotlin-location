@@ -15,3 +15,10 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+
+-keepclassmembers class rx.internal.util.unsafe.** {
+    *** producerIndex;
+    *** consumerIndex;
+    *** consumerNode;
+    *** producerNode;
+}

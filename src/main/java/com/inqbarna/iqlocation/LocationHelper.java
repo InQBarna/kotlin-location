@@ -1,13 +1,16 @@
 package com.inqbarna.iqlocation;
 
+import android.Manifest;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -32,8 +35,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
-import rx.Observer;
-import rx.Producer;
 import rx.Subscriber;
 import rx.Subscription;
 import rx.functions.Action0;
@@ -77,6 +78,61 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
             return location != null;
         }
     };
+
+    public static class Builder {
+        private Context context;
+        private LocationRequest request;
+
+        public Builder(Context context) {
+            this.context = context;
+            this.request = LocationRequest.create().setFastestInterval(FASTEST_INTERVAL_MILLIS).setInterval(LONGER_INTERVAL_MILLIS)
+                                          .setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+
+        }
+
+        public Builder setPriority(int priority) {
+            request.setPriority(priority);
+            return this;
+        }
+
+        public Builder setExpirationDuration(long millis) {
+            request.setExpirationDuration(millis);
+            return this;
+        }
+
+        public Builder setExpirationTime(long millis) {
+            request.setExpirationTime(millis);
+            return this;
+        }
+
+        public Builder setFastestInterval(long millis) {
+            request.setFastestInterval(millis);
+            return this;
+        }
+
+        public Builder setInterval(long millis) {
+            request.setInterval(millis);
+            return this;
+        }
+
+        public Builder setNumUpdates(int numUpdates) {
+            request.setNumUpdates(numUpdates);
+            return this;
+        }
+
+        public Builder setSmallestDisplacement(float smallestDisplacementMeters) {
+            request.setSmallestDisplacement(smallestDisplacementMeters);
+            return this;
+        }
+
+        public LocationHelper build() {
+            return new LocationHelper(context, request);
+        }
+    }
+
+    public static Builder builder(Context ctxt) {
+        return new Builder(ctxt);
+    }
 
 
     public static void setDebug(boolean enable) {
@@ -133,17 +189,32 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         }
     }
 
+    public static final int ENABLED       = 0;
+    public static final int NO_PERMISSION = 1;
+    public static final int DISABLED      = 2;
+
     public void setGlobalErrorWatch(ErrorHandler errorWatch) {
         this.globalErrorWatch = errorWatch;
     }
 
-    public boolean isLocationEnabled() {
+    public int isLocationEnabled() {
         return isLocationEnabled(false);
     }
 
-    public boolean isLocationEnabled(boolean highAccuracyRequired) {
+    public int isLocationEnabled(boolean highAccuracyRequired) {
 
         ContentResolver resolver = appContext.getContentResolver();
+
+        // Check permission first
+        if (highAccuracyRequired) {
+            if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return NO_PERMISSION;
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return NO_PERMISSION;
+            }
+        }
 
         boolean enabled = false;
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
@@ -168,7 +239,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
             }
         }
 
-        return enabled;
+        return enabled ? ENABLED : DISABLED;
     }
 
     public Observable<List<Address>> getAddressesAtMyLocation(final int maxResults) {
@@ -229,6 +300,18 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                        .setFastestInterval(fastestIntervalMillis);
     }
 
+    private LocationHelper(Context context, LocationRequest request) {
+        this.appContext = context.getApplicationContext();
+        GoogleApiClient.Builder builder = new GoogleApiClient.Builder(appContext);
+        builder.addApi(LocationServices.API).addConnectionCallbacks(this);
+
+        apiClient = builder.build();
+
+        subscribers = new ArrayList<>();
+        createObservable();
+        this.locationRequest = request;
+    }
+
 
     /**
      * The returned observable is not guaranteed to deliver results in main thread, if you want to ensure that
@@ -250,7 +333,11 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
             @Override
             public void call(Subscriber<? super Location> subscriber) {
 
-                if (!isLocationEnabled()) {
+
+                final int locationEnabled = isLocationEnabled();
+                if (locationEnabled == NO_PERMISSION) {
+                    subscriber.onError(new NoPermissionError("You don't have required permissions, make sure to request them first"));
+                } else if (locationEnabled != ENABLED) {
                     if (DEBUG) Log.d(TAG, "Trying to subscribe to location, but it's disabled... finishing");
                     subscriber.onCompleted();
                     return;
@@ -393,7 +480,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                 holder = new OnLocationHolder(onLocationChangedListener, false);
                 beginGettingUpdates();
             } else if (DEBUG) {
-                Log.w(TAG, "Tryied to activate twice... ");
+                Log.w(TAG, "Tried to activate twice... ");
             }
         }
 
@@ -417,7 +504,11 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                         public void call(Throwable throwable) {
                             Log.e(TAG, "Error getting location update", throwable);
                             finishSubscription(false);
-                            scheduleRetry();
+                            if (throwable instanceof NoPermissionError) {
+                                // do not retry in this case
+                            } else {
+                                scheduleRetry();
+                            }
                         }
                     },
                     new Action0() {
@@ -491,6 +582,16 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
             finishSubscription(true);
             holder = null;
             activated = false;
+        }
+    }
+
+    /**
+     * @author David García <david.garcia@inqbarna.com>
+     * @version 1.0 17/12/15
+     */
+    public static class NoPermissionError extends Error {
+        public NoPermissionError(String detailMessage) {
+            super(detailMessage);
         }
     }
 }
