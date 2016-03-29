@@ -412,7 +412,11 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     }
 
     public LocationSource newLocationSource() {
-        return new MapLocationSource(this);
+        return newLocationSource(false);
+    }
+
+    public LocationSource newLocationSource(boolean retryAlways) {
+        return new MapLocationSource(this, retryAlways);
     }
 
     private static class OnLocationHolder {
@@ -463,12 +467,14 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         private boolean          activated;
         private int              count;
         private OnLocationHolder holder;
+        private boolean          alwaysRetry;
 
 
-        private final long MAX_MS = 5000;
+        private final long MAX_MS = 15000;
 
-        private MapLocationSource(LocationHelper helper) {
+        private MapLocationSource(LocationHelper helper, boolean retryAlways) {
             this.helper = helper;
+            this.alwaysRetry = retryAlways;
         }
 
         @Override
@@ -504,7 +510,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                         public void call(Throwable throwable) {
                             Log.e(TAG, "Error getting location update", throwable);
                             finishSubscription(false);
-                            if (throwable instanceof NoPermissionError) {
+                            if (throwable instanceof NoPermissionError && !alwaysRetry) {
                                 // do not retry in this case
                             } else {
                                 scheduleRetry();
