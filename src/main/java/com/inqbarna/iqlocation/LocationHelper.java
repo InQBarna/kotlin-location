@@ -175,6 +175,17 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         }
     }
 
+    private synchronized void dispatchError(Throwable error) {
+        Iterator<Subscriber<? super Location>> iterator = subscribers.iterator();
+        while (iterator.hasNext()) {
+            final Subscriber<? super Location> subscriber = iterator.next();
+            if (!subscriber.isUnsubscribed()) {
+                subscriber.onError(error);
+            }
+            iterator.remove();
+        }
+    }
+
     private void endClient() {
         if (apiClient.isConnecting()) {
             if (DEBUG) Log.d(TAG, "Tried disconnect while still connecting... ignore");
@@ -352,6 +363,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                     if (DEBUG) Log.d(TAG, "Will connect to Google Api Client");
                     connectApiClient();
                 } else {
+                    //noinspection MissingPermission
                     dispatchNewLocation(LocationServices.FusedLocationApi.getLastLocation(apiClient));
                 }
             }
@@ -387,10 +399,18 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                 dispatchCompleted(); // probably not needed?
                 return;
             }
-            boolean alive = dispatchNewLocation(LocationServices.FusedLocationApi.getLastLocation(apiClient));
-            if (alive) {
-                // maybe we get disconnected inside dispatch
-                LocationServices.FusedLocationApi.requestLocationUpdates(apiClient, locationRequest, locationListener);
+
+            if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                    && ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                dispatchError(new NoPermissionError("You don't have required permissions, removed while connecting"));
+            } else {
+                //noinspection MissingPermission
+                boolean alive = dispatchNewLocation(LocationServices.FusedLocationApi.getLastLocation(apiClient));
+                if (alive) {
+                    // maybe we get disconnected inside dispatch
+                    //noinspection MissingPermission
+                    LocationServices.FusedLocationApi.requestLocationUpdates(apiClient, locationRequest, locationListener);
+                }
             }
         }
     }
