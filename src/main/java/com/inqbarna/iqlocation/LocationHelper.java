@@ -213,18 +213,31 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     }
 
     public int isLocationEnabled(boolean highAccuracyRequired) {
+        return checkForLocationAvailability(highAccuracyRequired);
+    }
 
-        ContentResolver resolver = appContext.getContentResolver();
+    protected int checkForLocationAvailability(boolean highAccuracyRequired) {
+        return checkForLocationAvailability(appContext, highAccuracyRequired, true);
+    }
+
+    public static int checkForLocationAvailability(Context context, boolean highAccuracyRequired, boolean includeSettings) {
+        ContentResolver resolver = context.getContentResolver();
 
         // Check permission first
         if (highAccuracyRequired) {
-            if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 return NO_PERMISSION;
             }
         } else {
-            if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                    && ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 return NO_PERMISSION;
             }
+        }
+
+        if (!includeSettings) {
+            // TODO: 20/9/16 What's the best neutral result?
+            return ENABLED;
         }
 
         boolean enabled = false;
@@ -323,6 +336,9 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         this.locationRequest = request;
     }
 
+    public final LocationRequest getLocationRequest() {
+        return locationRequest;
+    }
 
     /**
      * The returned observable is not guaranteed to deliver results in main thread, if you want to ensure that
