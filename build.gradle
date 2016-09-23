@@ -22,7 +22,6 @@ dependencies {
     compile "com.android.support:support-v4:${supportLibVersion}"
     compile "com.google.android.gms:play-services-location:${playServicesVersion}"
     compile "com.google.android.gms:play-services-maps:${playServicesVersion}"
-    compile 'io.reactivex:rxandroid:1.1.0'
-    compile 'io.reactivex:rxjava:1.1.0'
+    compile group: 'io.reactivex', name: 'rxjava', version: rxJavaVersion
     compile 'com.squareup.okhttp:okhttp:2.7.0'
 }
