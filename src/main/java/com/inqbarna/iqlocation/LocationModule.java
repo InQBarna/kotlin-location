@@ -5,6 +5,7 @@ import android.content.Context;
 import com.google.android.gms.location.LocationRequest;
 import com.inqbarna.iqlocation.annotation.BatteryConservativeLocation;
 import com.inqbarna.iqlocation.annotation.FastLocation;
+import com.inqbarna.iqlocation.annotation.IntermediateLocation;
 
 import javax.inject.Singleton;
 
@@ -19,6 +20,7 @@ import dagger.Provides;
 public class LocationModule {
 
     private static final long QUICK_FASTEST_INTERVAL = 5 * 1000; // 5 seconds in millis
+    private static final long MEDIUM_INTERVAL = 15 * 1000; // 15 seconds in millis
     private Context mContext;
 
     public LocationModule(Context context) {
@@ -41,6 +43,17 @@ public class LocationModule {
     @BatteryConservativeLocation
     LocationHelper provideBatterySaverLocation() {
         return LocationHelper.builder(mContext).build();
+    }
+
+    @Singleton
+    @Provides
+    @IntermediateLocation
+    LocationHelper provideIntermediateRequestLocation() {
+        return LocationHelper.builder(mContext)
+                             .setInterval(MEDIUM_INTERVAL)
+                             .setFastestInterval(QUICK_FASTEST_INTERVAL)
+                             .setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
+                             .build();
     }
 
 }

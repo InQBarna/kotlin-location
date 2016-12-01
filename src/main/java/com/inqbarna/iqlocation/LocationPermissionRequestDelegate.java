@@ -33,11 +33,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class LocationPermissionRequestDelegate {
-    private static final String TAG                   = "PermsDelegate";
+    private static final String TAG = "PermsDelegate";
 
-    public static final  int RC_LOCATION_PERMISSION   = 123;
-    private static final int REQUEST_RESOLVE_ERROR    = 1;
-    private static final int REQUEST_RESOLVE_SETTINGS = 2;
+    public static final int  DEFAULT_RC_RESOLVE_ERROR    = 1;
+    public static final int  DEFAULT_RC_RESOLVE_SETTINGS = 2;
+    public static final int DEFAULT_RC_LOCATION_PERMISSION = 123;
+
+    public int  mRequestCodeLocationPermission = DEFAULT_RC_LOCATION_PERMISSION;
+    private int mRequestCodeResolveError       = DEFAULT_RC_RESOLVE_ERROR;
+    private int mRequestCodeResolveSettings    = DEFAULT_RC_RESOLVE_SETTINGS;
 
     private final LocationDelegateCallbacks mCallbacks;
     private final Activity mContext;
@@ -67,7 +71,7 @@ public class LocationPermissionRequestDelegate {
                 return;
             } else if (connectionResult.hasResolution()) {
                 try {
-                    doResolveResolvable(connectionResult.getResolution(), REQUEST_RESOLVE_ERROR);
+                    doResolveResolvable(connectionResult.getResolution(), mRequestCodeResolveError);
                 } catch (IntentSender.SendIntentException e) {
                     // There was an error with the resolution intent. Try again.
                     mApiClient.connect();
@@ -81,6 +85,18 @@ public class LocationPermissionRequestDelegate {
             }
         }
     };
+
+    public void setRequestCodeLocationPermission(int requestCodeLocationPermission) {
+        this.mRequestCodeLocationPermission = requestCodeLocationPermission;
+    }
+
+    public void setRequestCodeResolveError(int requestCodeResolveError) {
+        this.mRequestCodeResolveError = requestCodeResolveError;
+    }
+
+    public void setRequestCodeResolveSettings(int requestCodeResolveSettings) {
+        this.mRequestCodeResolveSettings = requestCodeResolveSettings;
+    }
 
     protected void doResolveResolvable(PendingIntent resolution, int requestCode) throws IntentSender.SendIntentException {
         if (mResolvingError) {
@@ -105,7 +121,7 @@ public class LocationPermissionRequestDelegate {
     private Runnable mOnConnected;
 
     public boolean onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == REQUEST_RESOLVE_ERROR) {
+        if (requestCode == mRequestCodeResolveError) {
             mResolvingError = false;
             if (resultCode == Activity.RESULT_OK) {
                 if (!mApiClient.isConnected() && !mApiClient.isConnecting()) {
@@ -113,7 +129,7 @@ public class LocationPermissionRequestDelegate {
                 }
             }
             return true;
-        } else if (requestCode == REQUEST_RESOLVE_SETTINGS) {
+        } else if (requestCode == mRequestCodeResolveSettings) {
             if (resultCode == Activity.RESULT_OK) {
                 processLocationSettings(LocationSettingsStates.fromIntent(data));
             } else {
@@ -249,14 +265,14 @@ public class LocationPermissionRequestDelegate {
     void actualPermissionRequest() {
         String[] toRequest = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
         if (null != mFragment) {
-            mFragment.requestPermissions(toRequest, RC_LOCATION_PERMISSION);
+            mFragment.requestPermissions(toRequest, mRequestCodeLocationPermission);
         } else {
-            ActivityCompat.requestPermissions(mContext, toRequest, RC_LOCATION_PERMISSION);
+            ActivityCompat.requestPermissions(mContext, toRequest, mRequestCodeLocationPermission);
         }
     }
 
     public boolean onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        if (requestCode == RC_LOCATION_PERMISSION) {
+        if (requestCode == mRequestCodeLocationPermission) {
             mShown = true;
             boolean granted = false;
             for (int i = 0, grantResultsLength = grantResults.length; i < grantResultsLength; i++) {
@@ -294,7 +310,7 @@ public class LocationPermissionRequestDelegate {
                                             if (status.hasResolution()) {
                                                 final PendingIntent resolution = locationSettingsResult.getStatus().getResolution();
                                                 try {
-                                                    doResolveResolvable(resolution, REQUEST_RESOLVE_SETTINGS);
+                                                    doResolveResolvable(resolution, mRequestCodeResolveSettings);
                                                 } catch (IntentSender.SendIntentException e) {
                                                     Log.e(TAG, "Cannot resolve error", e);
                                                     mCallbacks.onPermissionDenied();
