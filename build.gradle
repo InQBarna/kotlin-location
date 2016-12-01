@@ -1,3 +1,13 @@
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath group: 'com.neenbedankt.gradle.plugins', name: 'android-apt', version: '1.8'
+    }
+}
+
 apply plugin: 'com.android.library'
 apply plugin: 'com.neenbedankt.android-apt'
 
