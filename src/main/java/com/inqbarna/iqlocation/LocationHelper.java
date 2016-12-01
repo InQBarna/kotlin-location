@@ -291,6 +291,8 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                         if (!globalErrorWatch.chanceToInterceptGeocoderError(error)) {
                             throw error;
                         }
+                    } else {
+                        throw error;
                     }
                 }
 
