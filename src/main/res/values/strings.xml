@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">Location Helper</string>
+    <string name="request_location_title">Location permission required</string>
+    <string name="request_location_msg">We need permission to access location in order to offer better service. We do not share your location with anybody, we only use it to show information that matters to you</string>
 </resources>
