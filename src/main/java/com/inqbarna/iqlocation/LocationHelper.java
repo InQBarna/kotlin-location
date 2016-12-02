@@ -277,6 +277,19 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         );
     }
 
+    public Observable<Geocoder.LocationInfo> getReverseLocationInfo(String placeName) {
+        return Observable.just(placeName).observeOn(rxScheduler).map(getAddressToInfoConverter());
+    }
+
+    private Func1<? super String, ? extends Geocoder.LocationInfo> getAddressToInfoConverter() {
+        return new Func1<String, Geocoder.LocationInfo>() {
+            @Override
+            public Geocoder.LocationInfo call(String locationName) {
+                return Geocoder.getLatLngBoundsFromAddress(locationName, Locale.getDefault().getLanguage());
+            }
+        };
+    }
+
     private Func1<Location, List<Address>> getLocationToAddressesConverter(final int maxResults) {
         return new Func1<Location, List<Address>>() {
             @Override
@@ -365,10 +378,10 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
                 final int locationEnabled = isLocationEnabled();
                 if (locationEnabled == NO_PERMISSION) {
-                    subscriber.onError(new NoPermissionError("You don't have required permissions, make sure to request them first"));
+                    subscriber.onError(new LocationHelperError("You don't have required permissions, make sure to request them first"));
                 } else if (locationEnabled != ENABLED) {
                     if (DEBUG) Log.d(TAG, "Trying to subscribe to location, but it's disabled... finishing");
-                    subscriber.onCompleted();
+                    subscriber.onError(new LocationHelperError("You need to enable GPS to get location"));
                     return;
                 } else if (DEBUG) {
                     Log.d(TAG, "Subscribed to getLocation");
@@ -420,7 +433,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
             if (ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
                     && ContextCompat.checkSelfPermission(appContext, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                dispatchError(new NoPermissionError("You don't have required permissions, removed while connecting"));
+                dispatchError(new LocationHelperError("You don't have required permissions, removed while connecting"));
             } else {
                 //noinspection MissingPermission
                 boolean alive = dispatchNewLocation(LocationServices.FusedLocationApi.getLastLocation(apiClient));
@@ -548,7 +561,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                         public void call(Throwable throwable) {
                             Log.e(TAG, "Error getting location update", throwable);
                             finishSubscription(false);
-                            if (throwable instanceof NoPermissionError && !alwaysRetry) {
+                            if (throwable instanceof LocationHelperError && !alwaysRetry) {
                                 // do not retry in this case
                             } else {
                                 scheduleRetry();
@@ -633,8 +646,8 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
      * @author David García <david.garcia@inqbarna.com>
      * @version 1.0 17/12/15
      */
-    public static class NoPermissionError extends Error {
-        public NoPermissionError(String detailMessage) {
+    public static class LocationHelperError extends Error {
+        public LocationHelperError(String detailMessage) {
             super(detailMessage);
         }
     }

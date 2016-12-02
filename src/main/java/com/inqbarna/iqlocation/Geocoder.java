@@ -7,6 +7,8 @@ package com.inqbarna.iqlocation;
 import android.location.Address;
 import android.os.Bundle;
 import android.os.Looper;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.util.Log;
 import android.util.SparseArray;
 
@@ -182,7 +184,8 @@ public class Geocoder {
 
         return retList;
     }
-    public static LocationInfo getLatLngBoundsFromAddress(String addressName) {
+
+    public static LocationInfo getLatLngBoundsFromAddress(String addressName, String languageCode) {
 
         if (Looper.getMainLooper().equals(Looper.myLooper())) {
             throw new IllegalStateException("Cannot run this method from UI thread");
@@ -191,19 +194,15 @@ public class Geocoder {
         try {
             addressName = URLEncoder.encode(addressName, "UTF-8");
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
+            throw new GeocoderError("Failed encoding place", e);
         }
 
-        String address = "http://maps.googleapis.com/maps/api/geocode/json?address=" + addressName + "&sensor=false&language=" +
-                Locale.getDefault().getLanguage();
-
+        String address = "http://maps.googleapis.com/maps/api/geocode/json?address=" + addressName + "&sensor=false&language=" + languageCode;
         if (DEBUG_PRINT) {
             Log.d(TAG, "Will request: " + address);
         }
 
         OkHttpClient client = new OkHttpClient();
-
-        //        client.getParams().setParameter(AllClientPNames.USER_AGENT, "Mozilla/5.0 (Java) Gecko/20081007 java-geocoder");
         final Call call = client.newCall(new Request.Builder().get().url(HttpUrl.parse(address)).build());
 
         LocationInfo locationInfo = null;
@@ -218,51 +217,36 @@ public class Geocoder {
 
             JSONObject jsonObject = new JSONObject(json);
 
-            int maxResult = 1;
             Double neLat = 0.0, neLng = 0.0, swLat = 0.0, swLng = 0.0, lat = 0.0, lng = 0.0;
             boolean found = false;
+            LatLngBounds bounds = null;
+            LatLngBounds viewport = null;
 
             if ("OK".equalsIgnoreCase(jsonObject.getString("status"))) {
                 JSONArray results = jsonObject.getJSONArray("results");
                 if (results.length() > 0) {
-                    for (int i = 0; i < results.length() && i < maxResult; i++) {
+                    for (int i = 0; i < results.length(); i++) {
                         JSONObject result = results.getJSONObject(i);
-
-                        if (result.has("address_components")) {
-
-                            JSONArray address_components = result.getJSONArray("address_components");
-                            for (int x = 0; x < address_components.length(); x++) {
-                                JSONObject element = address_components.getJSONObject(x);
-                                if (element.has("types")) {
-                                    JSONArray array = element.getJSONArray("types");
-                                    for (int y = 0; y < array.length(); y++) {
-                                        String type = array.getString(y);
-                                        if ("country".equals(type)) {
-                                            found = true;
-                                            Log.d("inqgeocoder", "found!");
-                                        }
-                                    }
-                                }
-                            }
-                        }
 
                         if (result.has("geometry")) {
                             JSONObject geometry = result.getJSONObject("geometry");
 
                             if (geometry.has("viewport")) {
-                                JSONObject bounds = geometry.getJSONObject("viewport");
+                                JSONObject viewPortJson = geometry.getJSONObject("viewport");
 
-                                if (bounds.has("northeast")) {
-                                    JSONObject northeast = bounds.getJSONObject("northeast");
+                                if (viewPortJson.has("northeast")) {
+                                    JSONObject northeast = viewPortJson.getJSONObject("northeast");
                                     neLat = northeast.getDouble("lat");
                                     neLng = northeast.getDouble("lng");
                                 }
 
-                                if (bounds.has("southwest")) {
-                                    JSONObject southwest = bounds.getJSONObject("southwest");
+                                if (viewPortJson.has("southwest")) {
+                                    JSONObject southwest = viewPortJson.getJSONObject("southwest");
                                     swLat = southwest.getDouble("lat");
                                     swLng = southwest.getDouble("lng");
                                 }
+
+                                viewport = new LatLngBounds(new LatLng(swLat, swLng), new LatLng(neLat, neLng));
                             }
 
                             if (geometry.has("location")) {
@@ -270,165 +254,72 @@ public class Geocoder {
                                 lat = location.getDouble("lat");
                                 lng = location.getDouble("lng");
                             }
-                        }
-
-                        if (found) {
-                            break;
-                        }
-                    }
-                }
-
-                LatLngBounds latLngBounds = null;
-
-                if (neLat != 0.0 && neLng != 0.0 && swLat != 0.0 && swLng != 0.0) {
-                    latLngBounds = new LatLngBounds(new LatLng(swLat, swLng), new LatLng(neLat, neLng));
-                }
-
-                locationInfo = new LocationInfo(latLngBounds, new LatLng(lat, lng));
-            }
-
-        } catch (IOException e) {
-            Log.e(TAG, "Error calling Google geocode webservice.", e);
-        } catch (JSONException e) {
-            Log.e(TAG, "Error parsing Google geocode webservice response.", e);
-        }
-
-        return locationInfo;
-    }
-    public static LocationInfo getLatLngBoundsFromCountryName(String countryName) {
-
-        if (Looper.getMainLooper().equals(Looper.myLooper())) {
-            throw new IllegalStateException("Cannot run this method from UI thread");
-        }
-
-        try {
-            countryName = URLEncoder.encode(countryName, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-        String address = "http://maps.googleapis.com/maps/api/geocode/json?address=" + countryName + "&sensor=false&language=" +
-                Locale.getDefault().getLanguage();
-
-        if (DEBUG_PRINT) {
-            Log.d(TAG, "Requesting " + address);
-        }
-//        client.getParams().setParameter(AllClientPNames.USER_AGENT, "Mozilla/5.0 (Java) Gecko/20081007 java-geocoder");
-
-        OkHttpClient client = new OkHttpClient();
-
-        Call call = client.newCall(new Request.Builder().get().url(HttpUrl.parse(address)).build());
-
-        LocationInfo locationInfo = null;
-
-        try {
-            final Response response = call.execute();
-            String json = response.body().string();
-
-            if (DEBUG_PRINT) {
-                Log.d(TAG, json);
-            }
-
-            JSONObject jsonObject = new JSONObject(json);
-
-            int maxResult = 1;
-            Double neLat = 0.0, neLng = 0.0, swLat = 0.0, swLng = 0.0, lat = 0.0, lng = 0.0;
-            boolean found = false;
-
-
-            if ("OK".equalsIgnoreCase(jsonObject.getString("status"))) {
-                JSONArray results = jsonObject.getJSONArray("results");
-                if (results.length() > 0) {
-                    for (int i = 0; i < results.length() && i < maxResult; i++) {
-                        JSONObject result = results.getJSONObject(i);
-
-                        if (result.has("address_components")) {
-
-                            JSONArray address_components = result.getJSONArray("address_components");
-                            for (int x = 0; x < address_components.length(); x++) {
-                                JSONObject element = address_components.getJSONObject(x);
-                                if (element.has("types")) {
-                                    JSONArray array = element.getJSONArray("types");
-                                    for (int y = 0; y < array.length(); y++) {
-                                        String type = array.getString(y);
-                                        if ("country".equals(type)) {
-                                            found = true;
-                                            Log.d("inqgeocoder", "found!");
-                                        }
-                                    }
-                                }
-
-
-                            }
-
-                        }
-
-
-                        if (result.has("geometry")) {
-                            JSONObject geometry = result.getJSONObject("geometry");
 
                             if (geometry.has("bounds")) {
-                                JSONObject bounds = geometry.getJSONObject("bounds");
+                                JSONObject regionJson = geometry.getJSONObject("bounds");
 
-                                if (bounds.has("northeast")) {
-                                    JSONObject northeast = bounds.getJSONObject("northeast");
+                                if (regionJson.has("northeast")) {
+                                    JSONObject northeast = regionJson.getJSONObject("northeast");
                                     neLat = northeast.getDouble("lat");
                                     neLng = northeast.getDouble("lng");
                                 }
 
-                                if (bounds.has("southwest")) {
-                                    JSONObject southwest = bounds.getJSONObject("southwest");
+                                if (regionJson.has("southwest")) {
+                                    JSONObject southwest = regionJson.getJSONObject("southwest");
                                     swLat = southwest.getDouble("lat");
                                     swLng = southwest.getDouble("lng");
                                 }
-
-
+                                bounds = new LatLngBounds(new LatLng(swLat, swLng), new LatLng(neLat, neLng));
                             }
-
-                            if (geometry.has("location")) {
-                                JSONObject location = geometry.getJSONObject("location");
-                                lat = location.getDouble("lat");
-                                lng = location.getDouble("lng");
-                            }
-
+                            found = true;
                         }
 
                         if (found) {
                             break;
                         }
-
                     }
                 }
 
-                LatLngBounds latLngBounds = null;
-
-                if (neLat != 0.0 && neLng != 0.0 && swLat != 0.0 && swLng != 0.0) {
-                    latLngBounds = new LatLngBounds(new LatLng(swLat, swLng), new LatLng(neLat, lng));
+                if (null == viewport) {
+                    if (null != bounds) {
+                        viewport = bounds;
+                    } else {
+                        throw new GeocoderError("Invalid geocoder response? Or did not process them all!");
+                    }
                 }
 
-                locationInfo = new LocationInfo(latLngBounds, new LatLng(lat, lng));
+                locationInfo = new LocationInfo(viewport, new LatLng(lat, lng), bounds);
             }
-
 
         } catch (IOException e) {
             Log.e(TAG, "Error calling Google geocode webservice.", e);
+            throw new GeocoderError("Error calling Google geocode webservice. " + e.getMessage());
         } catch (JSONException e) {
             Log.e(TAG, "Error parsing Google geocode webservice response.", e);
+            throw new GeocoderError("Error parsing Google geocode webservice response. " + e.getMessage());
         }
 
         return locationInfo;
     }
 
     public static class LocationInfo {
-        LatLngBounds latLngBounds;
-        LatLng       latLng;
+        private LatLngBounds latLngBounds;
+        private LatLngBounds latLngViewPort;
+        private LatLng       latLng;
 
-        public LocationInfo(LatLngBounds latLngBounds, LatLng latLng) {
-            this.latLngBounds = latLngBounds;
+        public LocationInfo(@NonNull LatLngBounds viewPort, LatLng latLng, @Nullable LatLngBounds bounds) {
+            this.latLngBounds = bounds;
             this.latLng = latLng;
         }
 
+        @Nullable
         public LatLngBounds getLatLngBounds() {
             return latLngBounds;
+        }
+
+        @NonNull
+        public LatLngBounds getLatLngViewPort() {
+            return latLngViewPort;
         }
 
         public LatLng getLatLng() {
