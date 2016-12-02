@@ -130,6 +130,7 @@ public class LocationPermissionRequestDelegate {
             }
             return true;
         } else if (requestCode == mRequestCodeResolveSettings) {
+            mResolvingError = false;
             if (resultCode == Activity.RESULT_OK) {
                 processLocationSettings(LocationSettingsStates.fromIntent(data));
             } else {
@@ -329,8 +330,10 @@ public class LocationPermissionRequestDelegate {
 
         if (mApiClient.isConnected()) {
             task.run();
-        } else {
+        } else if (mApiClient.isConnecting()) {
             mOnConnected = task;
+        } else {
+            mCallbacks.onPermissionDenied();
         }
     }
 
