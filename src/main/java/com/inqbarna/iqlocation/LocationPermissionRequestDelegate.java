@@ -32,22 +32,17 @@ import com.google.android.gms.location.LocationSettingsStates;
 import java.util.ArrayList;
 import java.util.List;
 
-public class LocationPermissionRequestDelegate {
-    private static final String TAG = "PermsDelegate";
+public class LocationPermissionRequestDelegate extends PermissionRequestDelegate {
 
     public static final int  DEFAULT_RC_RESOLVE_ERROR    = 1;
     public static final int  DEFAULT_RC_RESOLVE_SETTINGS = 2;
-    public static final int DEFAULT_RC_LOCATION_PERMISSION = 123;
 
-    public int  mRequestCodeLocationPermission = DEFAULT_RC_LOCATION_PERMISSION;
     private int mRequestCodeResolveError       = DEFAULT_RC_RESOLVE_ERROR;
     private int mRequestCodeResolveSettings    = DEFAULT_RC_RESOLVE_SETTINGS;
 
-    private final LocationDelegateCallbacks mCallbacks;
-    private final Activity mContext;
-    private final Fragment mFragment;
-    private Options mOptions;
-    private GoogleApiClient mApiClient;
+    private final PermissionDelegateCallbacks mCallbacks;
+    private       GoogleApiClient             mApiClient;
+
     private final GoogleApiClient.ConnectionCallbacks mClientCallback = new GoogleApiClient.ConnectionCallbacks() {
         @Override
         public void onConnected(@Nullable Bundle bundle) {
@@ -86,10 +81,6 @@ public class LocationPermissionRequestDelegate {
         }
     };
 
-    public void setRequestCodeLocationPermission(int requestCodeLocationPermission) {
-        this.mRequestCodeLocationPermission = requestCodeLocationPermission;
-    }
-
     public void setRequestCodeResolveError(int requestCodeResolveError) {
         this.mRequestCodeResolveError = requestCodeResolveError;
     }
@@ -104,10 +95,10 @@ public class LocationPermissionRequestDelegate {
         }
         mResolvingError = true;
         final IntentSender intentSender = resolution.getIntentSender();
-        if (null != mFragment) {
-            mFragment.startIntentSenderForResult(intentSender, requestCode, null, 0, 0, 0, null);
+        if (null != getFragment()) {
+            getFragment().startIntentSenderForResult(intentSender, requestCode, null, 0, 0, 0, null);
         } else {
-            mContext.startIntentSenderForResult(intentSender, requestCode, null, 0, 0, 0);
+            getContext().startIntentSenderForResult(intentSender, requestCode, null, 0, 0, 0);
         }
     }
 
@@ -116,6 +107,11 @@ public class LocationPermissionRequestDelegate {
             mCallbacks.onPermissionDenied();
             mOnConnected = null;
         }
+    }
+
+    @Override
+    protected Options getOptions() {
+        return (Options)super.getOptions();
     }
 
     private Runnable mOnConnected;
@@ -142,26 +138,17 @@ public class LocationPermissionRequestDelegate {
         }
     }
 
-    public interface LocationDelegateCallbacks {
-        void showRequestPermissionsDialog(DialogInterface.OnClickListener accept, DialogInterface.OnClickListener deny);
-        void onPermissionGranted();
-        void onPermissionDenied();
-    }
-
-    public static class Options {
-        final boolean checkAlways;
+    public static class Options extends PermissionRequestDelegate.Options {
         final boolean checkSettings;
         final List<LocationRequest> mRequests;
 
         public Options(Builder builder) {
-            checkAlways = builder.checkAllways;
+            super(builder);
             checkSettings = builder.checkSettings;
             mRequests = builder.locationRequests;
         }
 
-        public static class Builder {
-
-            boolean checkAllways  = true;
+        public static class Builder extends PermissionRequestDelegate.Options.Builder<Options> {
             boolean checkSettings = false;
             List<LocationRequest> locationRequests = new ArrayList<>();
 
@@ -170,128 +157,72 @@ public class LocationPermissionRequestDelegate {
                 locationRequests.addAll(requests);
                 return this;
             }
-
-            public Builder disableCheckAllways() {
-                this.checkAllways = false;
-                return this;
-            }
-
+            
             public Options build() {
                 return new Options(this);
             }
         }
     }
 
-    private static final String SHOWN = "com.inqbarna.iqlocation.LocationPermissionRequestDelegate.SHOWN";
+    @Override
+    public void onSaveState(Bundle state) {
+        super.onSaveState(state);
+    }
+
+    private PermissionDelegateCallbacks mBridgedCallbacks = new PermissionDelegateCallbacks() {
+        @Override
+        public void showRequestPermissionsDialog(DialogInterface.OnClickListener accept, DialogInterface.OnClickListener deny) {
+            mCallbacks.showRequestPermissionsDialog(accept, deny);
+        }
+
+        @Override
+        public void onPermissionGranted() {
+            if (!getOptions().checkSettings) {
+                mCallbacks.onPermissionGranted();
+            } else {
+                beginSettingsCheck();
+            }
+        }
+
+        @Override
+        public void onPermissionDenied() {
+            mCallbacks.onPermissionDenied();
+        }
+    };
+
     private static final Options DEFAULT_OPTIONS = new Options.Builder().build();
 
-    private boolean mShown;
-
-
-    public LocationPermissionRequestDelegate(Activity context, LocationDelegateCallbacks callbacks, @Nullable Bundle state) {
+    public LocationPermissionRequestDelegate(Activity context, PermissionDelegateCallbacks callbacks, @Nullable Bundle state) {
         this(context, callbacks, DEFAULT_OPTIONS, state);
     }
 
-    public LocationPermissionRequestDelegate(Activity context, LocationDelegateCallbacks callbacks, @NonNull Options options, @Nullable Bundle state) {
+    public LocationPermissionRequestDelegate(Activity context, PermissionDelegateCallbacks callbacks, @NonNull Options options, @Nullable Bundle state) {
         this(context, callbacks, null, options, state);
     }
 
-    public LocationPermissionRequestDelegate(Fragment fragment, LocationDelegateCallbacks callbacks, @Nullable Bundle state) {
+    public LocationPermissionRequestDelegate(Fragment fragment, PermissionDelegateCallbacks callbacks, @Nullable Bundle state) {
         this(fragment, callbacks, DEFAULT_OPTIONS, state);
     }
 
-    public LocationPermissionRequestDelegate(Fragment fragment, LocationDelegateCallbacks callbacks, @NonNull Options options, @Nullable Bundle state) {
+    public LocationPermissionRequestDelegate(Fragment fragment, PermissionDelegateCallbacks callbacks, @NonNull Options options, @Nullable Bundle state) {
         this(fragment.getActivity(), callbacks, fragment, options, state);
     }
 
-    public LocationPermissionRequestDelegate(Activity context, LocationDelegateCallbacks callbacks, Fragment fragment, @NonNull Options options, @Nullable Bundle state) {
+    public LocationPermissionRequestDelegate(Activity context, PermissionDelegateCallbacks callbacks, Fragment fragment, @NonNull Options options, @Nullable Bundle state) {
+        super(context, null, fragment, options, state);
+        setCallbacks(mBridgedCallbacks);
         mCallbacks = callbacks;
-        mContext = context;
-        mFragment = fragment;
-        mOptions = options;
 
-        if (null != state) {
-            mShown = state.getBoolean(SHOWN);
-        }
-
-        if (mOptions.checkSettings) {
-            mApiClient = new GoogleApiClient.Builder(mContext, mClientCallback, mConnectionFailedCallback)
+        if (options.checkSettings) {
+            mApiClient = new GoogleApiClient.Builder(getContext(), mClientCallback, mConnectionFailedCallback)
                     .addApi(LocationServices.API)
                     .build();
         }
     }
 
-    public void onSaveState(Bundle state) {
-        state.putBoolean(SHOWN, mShown);
-    }
 
     public final void checkLocationPermission() {
-        if (ContextCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(mContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            if (!mOptions.checkSettings) {
-                mCallbacks.onPermissionGranted();
-            } else {
-                beginSettingsCheck();
-            }
-        } else if (mOptions.checkAlways || !mShown) {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(mContext, Manifest.permission.ACCESS_COARSE_LOCATION) ||
-                    ActivityCompat.shouldShowRequestPermissionRationale(mContext, Manifest.permission.ACCESS_FINE_LOCATION)) {
-                mCallbacks.showRequestPermissionsDialog(
-                        new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                actualPermissionRequest();
-                            }
-                        },
-                        new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                mShown = true;
-                                onCancelPermission();
-                            }
-                        }
-                );
-            } else {
-                actualPermissionRequest();
-            }
-        } else {
-            mCallbacks.onPermissionDenied();
-        }
-    }
-
-    protected void onCancelPermission() {
-        mCallbacks.onPermissionDenied();
-    }
-
-    void actualPermissionRequest() {
-        String[] toRequest = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION};
-        if (null != mFragment) {
-            mFragment.requestPermissions(toRequest, mRequestCodeLocationPermission);
-        } else {
-            ActivityCompat.requestPermissions(mContext, toRequest, mRequestCodeLocationPermission);
-        }
-    }
-
-    public boolean onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        if (requestCode == mRequestCodeLocationPermission) {
-            mShown = true;
-            boolean granted = false;
-            for (int i = 0, grantResultsLength = grantResults.length; i < grantResultsLength; i++) {
-                int gr = grantResults[i];
-                granted |= gr == PackageManager.PERMISSION_GRANTED;
-            }
-            if (granted) {
-                if (!mOptions.checkSettings) {
-                    mCallbacks.onPermissionGranted();
-                } else {
-                    beginSettingsCheck();
-                }
-            } else {
-                mCallbacks.onPermissionDenied();
-            }
-            return true;
-        }
-        return false;
+        checkPermissionsAll(new String[] { Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION});
     }
 
     private void beginSettingsCheck() {
@@ -299,7 +230,7 @@ public class LocationPermissionRequestDelegate {
             @Override
             public void run() {
                 LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
-                builder.addAllLocationRequests(mOptions.mRequests);
+                builder.addAllLocationRequests(getOptions().mRequests);
 
                 LocationServices.SettingsApi.checkLocationSettings(mApiClient, builder.build())
                         .setResultCallback(
@@ -356,10 +287,6 @@ public class LocationPermissionRequestDelegate {
             mApiClient.disconnect();
         }
     }
-
-
-
-
 
     public static AlertDialog defaultLocationDialog(Context context, DialogInterface.OnClickListener accept, DialogInterface.OnClickListener decline) {
         final Resources resources = context.getResources();
