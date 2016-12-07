@@ -35,6 +35,6 @@ dependencies {
     compile "com.google.android.gms:play-services-maps:${rootProject.ext.googlePlayVersion}"
     compile group: 'io.reactivex', name: 'rxjava', version: rootProject.ext.rxJavaVersion
     compile 'com.squareup.okhttp3:okhttp:3.4.2'
-    provided 'com.google.dagger:dagger:2.7'
-    apt 'com.google.dagger:dagger-compiler:2.7'
+    provided "com.google.dagger:dagger:${rootProject.ext.daggerVersion}"
+    apt "com.google.dagger:dagger-compiler:${rootProject.ext.daggerVersion}"
 }
