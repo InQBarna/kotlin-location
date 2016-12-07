@@ -148,7 +148,7 @@ public class LocationPermissionRequestDelegate extends PermissionRequestDelegate
             mRequests = builder.locationRequests;
         }
 
-        public static class Builder extends PermissionRequestDelegate.Options.Builder<Options> {
+        public static class Builder extends PermissionRequestDelegate.Options.Builder<Builder> {
             boolean checkSettings = false;
             List<LocationRequest> locationRequests = new ArrayList<>();
 
