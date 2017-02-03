@@ -155,24 +155,30 @@ public class PermissionRequestDelegate {
         return mOptions;
     }
 
+
     public static class Options {
         final boolean               checkAlways;
 
-        public Options(PermissionRequestDelegate.Options.Builder builder) {
+        protected Options(PermissionRequestDelegate.Options.Builder builder) {
             checkAlways = builder.checkAllways;
         }
 
-        public static class Builder<T extends Options> {
+        public abstract static class BaseBuilder<O extends Options> {
+            public abstract O build();
+        }
+
+        public static class Builder<T extends Builder> extends BaseBuilder<Options> {
 
             boolean checkAllways  = true;
 
-            public PermissionRequestDelegate.Options.Builder<T> disableCheckAllways() {
+            public T disableCheckAllways() {
                 this.checkAllways = false;
-                return this;
+                return (T) this;
             }
 
-            public T build() {
-                return (T) new Options(this);
+            @Override
+            public Options build() {
+                return new Options(this);
             }
         }
     }
