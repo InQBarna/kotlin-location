@@ -91,7 +91,7 @@ public class PermissionRequestDelegate {
         }
 
         if (allGranted) {
-            mCallbacks.onPermissionGranted();
+            mCallbacks.onPermissionGranted(true);
         } else if (mOptions.checkAlways || !mShown) {
             if (shouldShowRationale(permsissions)) {
                 mCallbacks.showRequestPermissionsDialog(
@@ -117,6 +117,10 @@ public class PermissionRequestDelegate {
         }
     }
 
+    public boolean isRationaleShown() {
+        return mShown;
+    }
+
     protected void onCancelPermission() {
         mCallbacks.onPermissionDenied();
     }
@@ -138,7 +142,7 @@ public class PermissionRequestDelegate {
                 granted |= gr == PackageManager.PERMISSION_GRANTED;
             }
             if (granted) {
-                mCallbacks.onPermissionGranted();
+                mCallbacks.onPermissionGranted(false);
             } else {
                 mCallbacks.onPermissionDenied();
             }

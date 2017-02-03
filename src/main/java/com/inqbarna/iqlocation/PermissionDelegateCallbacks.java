@@ -8,6 +8,6 @@ import android.content.DialogInterface;
  */
 public interface PermissionDelegateCallbacks {
     void showRequestPermissionsDialog(DialogInterface.OnClickListener accept, DialogInterface.OnClickListener deny);
-    void onPermissionGranted();
+    void onPermissionGranted(boolean alreadyGranted);
     void onPermissionDenied();
 }

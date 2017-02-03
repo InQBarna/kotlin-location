@@ -8,14 +8,11 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
-import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
-import android.support.v4.content.ContextCompat;
 import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -176,9 +173,9 @@ public class LocationPermissionRequestDelegate extends PermissionRequestDelegate
         }
 
         @Override
-        public void onPermissionGranted() {
+        public void onPermissionGranted(boolean alreadyGranted) {
             if (!getOptions().checkSettings) {
-                mCallbacks.onPermissionGranted();
+                mCallbacks.onPermissionGranted(false);
             } else {
                 beginSettingsCheck();
             }
@@ -270,7 +267,7 @@ public class LocationPermissionRequestDelegate extends PermissionRequestDelegate
 
     protected void processLocationSettings(LocationSettingsStates locationSettingsStates) {
         if (locationSettingsStates.isLocationPresent() && locationSettingsStates.isLocationUsable()) {
-            mCallbacks.onPermissionGranted();
+            mCallbacks.onPermissionGranted(false);
         } else {
             mCallbacks.onPermissionDenied();
         }
