@@ -125,7 +125,7 @@ public class LocationPermissionRequestDelegate extends PermissionRequestDelegate
         } else if (requestCode == mRequestCodeResolveSettings) {
             mResolvingError = false;
             if (resultCode == Activity.RESULT_OK) {
-                processLocationSettings(LocationSettingsStates.fromIntent(data));
+                processLocationSettings(LocationSettingsStates.fromIntent(data), false);
             } else {
                 mCallbacks.onPermissionDenied();
             }
@@ -177,7 +177,7 @@ public class LocationPermissionRequestDelegate extends PermissionRequestDelegate
             if (!getOptions().checkSettings) {
                 mCallbacks.onPermissionGranted(false);
             } else {
-                beginSettingsCheck();
+                beginSettingsCheck(alreadyGranted);
             }
         }
 
@@ -222,7 +222,7 @@ public class LocationPermissionRequestDelegate extends PermissionRequestDelegate
         checkPermissionsAll(new String[] { Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION});
     }
 
-    private void beginSettingsCheck() {
+    private void beginSettingsCheck(final boolean alreadyGranted) {
         Runnable task = new Runnable() {
             @Override
             public void run() {
@@ -248,7 +248,7 @@ public class LocationPermissionRequestDelegate extends PermissionRequestDelegate
                                                 mCallbacks.onPermissionDenied();
                                             }
                                         } else {
-                                            processLocationSettings(locationSettingsResult.getLocationSettingsStates());
+                                            processLocationSettings(locationSettingsResult.getLocationSettingsStates(), alreadyGranted);
                                         }
                                     }
                                 }
@@ -265,9 +265,9 @@ public class LocationPermissionRequestDelegate extends PermissionRequestDelegate
         }
     }
 
-    protected void processLocationSettings(LocationSettingsStates locationSettingsStates) {
+    protected void processLocationSettings(LocationSettingsStates locationSettingsStates, boolean alreadyGranted) {
         if (locationSettingsStates.isLocationPresent() && locationSettingsStates.isLocationUsable()) {
-            mCallbacks.onPermissionGranted(false);
+            mCallbacks.onPermissionGranted(alreadyGranted);
         } else {
             mCallbacks.onPermissionDenied();
         }
