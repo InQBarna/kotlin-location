@@ -175,7 +175,7 @@ public class LocationPermissionRequestDelegate extends PermissionRequestDelegate
         @Override
         public void onPermissionGranted(boolean alreadyGranted) {
             if (!getOptions().checkSettings) {
-                mCallbacks.onPermissionGranted(false);
+                mCallbacks.onPermissionGranted(alreadyGranted);
             } else {
                 beginSettingsCheck(alreadyGranted);
             }
