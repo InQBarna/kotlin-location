@@ -367,12 +367,11 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
         observable = Observable.create(new ObservableOnSubscribe<Location>() {
 
-            public ObservableEmitter<Location> emitter;
 
             @SuppressLint("MissingPermission")
             @Override
             public void subscribe(ObservableEmitter<Location> anEmitter) throws Exception {
-                emitter = anEmitter.serialize();
+                ObservableEmitter<Location> emitter = anEmitter.serialize();
 
                 final int locationEnabled = isLocationEnabled();
                 if (locationEnabled == NO_PERMISSION) {
