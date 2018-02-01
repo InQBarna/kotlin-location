@@ -1,6 +1,7 @@
 package com.inqbarna.iqlocation;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -20,7 +21,6 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.LocationSource;
 import com.inqbarna.iqlocation.util.ErrorHandler;
-import com.inqbarna.iqlocation.util.ExecutorServiceScheduler;
 import com.inqbarna.iqlocation.util.GeocoderError;
 
 import java.lang.ref.WeakReference;
@@ -34,12 +34,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import rx.Observable;
-import rx.Subscriber;
-import rx.Subscription;
-import rx.functions.Action0;
-import rx.functions.Action1;
-import rx.functions.Func1;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.Scheduler;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
 
 /**
  * Created by David García <david.garcia@inqbarna.com> on 26/11/14.
@@ -56,9 +59,9 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     private GoogleApiClient apiClient;
     private Context         appContext;
 
-    private       ArrayList<Subscriber<? super Location>> subscribers;
-    private       Observable<Location>                    observable;
-    private final LocationRequest                         locationRequest;
+    private       ArrayList<ObservableEmitter<? super Location>> emitters;
+    private       Observable<Location>                           observable;
+    private final LocationRequest                                locationRequest;
 
     private LocationListener locationListener = new LocationListener() {
         @Override
@@ -69,15 +72,8 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
     private ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
     private ScheduledFuture<?> sheduledTask;
-    private ExecutorServiceScheduler rxScheduler = new ExecutorServiceScheduler(executorService);
+    private Scheduler rxScheduler = Schedulers.from(executorService);
     private ErrorHandler globalErrorWatch;
-
-    public static Func1<? super Location, Boolean> NOT_NULL = new Func1<Location, Boolean>() {
-        @Override
-        public Boolean call(Location location) {
-            return location != null;
-        }
-    };
 
     public static class Builder {
         private Context context;
@@ -141,12 +137,14 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
     private synchronized boolean dispatchNewLocation(Location location) {
         int count = 0;
-        Iterator<Subscriber<? super Location>> iterator = subscribers.iterator();
+        Iterator<ObservableEmitter<? super Location>> iterator = emitters.iterator();
         while (iterator.hasNext()) {
-            final Subscriber<? super Location> subscriber = iterator.next();
-            if (!subscriber.isUnsubscribed()) {
+            final ObservableEmitter<? super Location> subscriber = iterator.next();
+            if (!subscriber.isDisposed()) {
                 count++;
-                subscriber.onNext(location);
+                if (null != location) {
+                    subscriber.onNext(location);
+                }
             } else {
                 iterator.remove();
             }
@@ -156,30 +154,30 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
             Log.d(TAG, "Location " + location + " delivered to " + count + " subscribers");
         }
 
-        if (subscribers.isEmpty()) {
+        if (emitters.isEmpty()) {
             if (DEBUG)
                 Log.d(TAG, "No more subscribers, LocationHelper will disconnect");
             endClient();
         }
-        return !subscribers.isEmpty();
+        return !emitters.isEmpty();
     }
 
     private synchronized void dispatchCompleted() {
-        Iterator<Subscriber<? super Location>> iterator = subscribers.iterator();
+        Iterator<ObservableEmitter<? super Location>> iterator = emitters.iterator();
         while (iterator.hasNext()) {
-            final Subscriber<? super Location> subscriber = iterator.next();
-            if (!subscriber.isUnsubscribed()) {
-                subscriber.onCompleted();
+            final ObservableEmitter<? super Location> subscriber = iterator.next();
+            if (!subscriber.isDisposed()) {
+                subscriber.onComplete();
             }
             iterator.remove();
         }
     }
 
     private synchronized void dispatchError(Throwable error) {
-        Iterator<Subscriber<? super Location>> iterator = subscribers.iterator();
+        Iterator<ObservableEmitter<? super Location>> iterator = emitters.iterator();
         while (iterator.hasNext()) {
-            final Subscriber<? super Location> subscriber = iterator.next();
-            if (!subscriber.isUnsubscribed()) {
+            final ObservableEmitter<? super Location> subscriber = iterator.next();
+            if (!subscriber.isDisposed()) {
                 subscriber.onError(error);
             }
             iterator.remove();
@@ -267,7 +265,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     }
 
     public Observable<List<Address>> getAddressesAtMyLocation(final int maxResults) {
-        return observable.first(NOT_NULL).observeOn(rxScheduler).map(
+        return observable.observeOn(rxScheduler).map(
                 getLocationToAddressesConverter(maxResults));
     }
 
@@ -281,19 +279,19 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         return Observable.just(placeName).observeOn(rxScheduler).map(getAddressToInfoConverter());
     }
 
-    private Func1<? super String, ? extends Geocoder.LocationInfo> getAddressToInfoConverter() {
-        return new Func1<String, Geocoder.LocationInfo>() {
+    private Function<? super String, ? extends Geocoder.LocationInfo> getAddressToInfoConverter() {
+        return new Function<String, Geocoder.LocationInfo>() {
             @Override
-            public Geocoder.LocationInfo call(String locationName) {
+            public Geocoder.LocationInfo apply(String locationName) {
                 return Geocoder.getLatLngBoundsFromAddress(locationName, Locale.getDefault().getLanguage());
             }
         };
     }
 
-    private Func1<Location, List<Address>> getLocationToAddressesConverter(final int maxResults) {
-        return new Func1<Location, List<Address>>() {
+    private Function<Location, List<Address>> getLocationToAddressesConverter(final int maxResults) {
+        return new Function<Location, List<Address>>() {
             @Override
-            public List<Address> call(Location location) {
+            public List<Address> apply(Location location) {
 
                 List<Address> addresses = null;
                 try {
@@ -330,7 +328,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
         apiClient = builder.build();
 
-        subscribers = new ArrayList<>();
+        emitters = new ArrayList<>();
         createObservable();
 
         locationRequest = LocationRequest.create();
@@ -346,7 +344,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
         apiClient = builder.build();
 
-        subscribers = new ArrayList<>();
+        emitters = new ArrayList<>();
         createObservable();
         this.locationRequest = request;
     }
@@ -356,12 +354,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     }
 
     /**
-     * The returned observable is not guaranteed to deliver results in main thread, if you want to ensure that
-     * use the {@link rx.Observable#observeOn(rx.Scheduler)} giving the {@link rx.android.schedulers.AndroidSchedulers#mainThread()} as argument
-     *
-     * If interested in just the first not null location consider the operator
-     * {@link rx.Observable#first(rx.functions.Func1)}
-     *
+     * Start listenin for location updates, and receive them when subscribed
      *
      *
      * @return the observable that will emit locations as known
@@ -371,30 +364,33 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     }
 
     private void createObservable() {
-        observable = Observable.create(new Observable.OnSubscribe<Location>() {
-            @Override
-            public void call(Subscriber<? super Location> subscriber) {
 
+        observable = Observable.create(new ObservableOnSubscribe<Location>() {
+
+
+            @SuppressLint("MissingPermission")
+            @Override
+            public void subscribe(ObservableEmitter<Location> anEmitter) throws Exception {
+                ObservableEmitter<Location> emitter = anEmitter.serialize();
 
                 final int locationEnabled = isLocationEnabled();
                 if (locationEnabled == NO_PERMISSION) {
-                    subscriber.onError(new LocationHelperError("You don't have required permissions, make sure to request them first"));
+                    emitter.onError(new LocationHelperError("You don't have required permissions, make sure to request them first"));
                 } else if (locationEnabled != ENABLED) {
                     if (DEBUG) Log.d(TAG, "Trying to subscribe to location, but it's disabled... finishing");
-                    subscriber.onError(new LocationHelperError("You need to enable GPS to get location"));
+                    anEmitter.onError(new LocationHelperError("You need to enable GPS to get location"));
                     return;
                 } else if (DEBUG) {
                     Log.d(TAG, "Subscribed to getLocation");
                 }
 
                 synchronized (LocationHelper.this) {
-                    subscribers.add(subscriber);
+                    emitters.add(emitter);
                 }
                 if (!apiClient.isConnected() && !apiClient.isConnecting()) {
                     if (DEBUG) Log.d(TAG, "Will connect to Google Api Client");
                     connectApiClient();
                 } else {
-                    //noinspection MissingPermission
                     dispatchNewLocation(LocationServices.FusedLocationApi.getLastLocation(apiClient));
                 }
             }
@@ -408,7 +404,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                 sheduledTask = executorService.scheduleAtFixedRate(new Runnable() {
                     @Override
                     public void run() {
-                        if (!checkSubscriversAlive()) {
+                        if (!checkEmittersAlive()) {
                             endClient();
                         }
                     }
@@ -417,9 +413,10 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         }
     }
 
+    @SuppressLint("MissingPermission")
     @Override
     public void onConnected(Bundle bundle) {
-        if (!checkSubscriversAlive()) {
+        if (!checkEmittersAlive()) {
             if (DEBUG) Log.d(TAG, "Connected but no one subscribed, will disconnect");
 
             endClient();
@@ -446,15 +443,15 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         }
     }
 
-    private synchronized boolean checkSubscriversAlive() {
-        Iterator<Subscriber<? super Location>> iterator = subscribers.iterator();
+    private synchronized boolean checkEmittersAlive() {
+        Iterator<ObservableEmitter<? super Location>> iterator = emitters.iterator();
         while (iterator.hasNext()) {
-            Subscriber<? super Location> subscriber = iterator.next();
-            if (subscriber.isUnsubscribed()) {
+            ObservableEmitter<? super Location> subscriber = iterator.next();
+            if (subscriber.isDisposed()) {
                 iterator.remove();
             }
         }
-        return !subscribers.isEmpty();
+        return !emitters.isEmpty();
     }
 
     @Override
@@ -514,7 +511,7 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
     private static class MapLocationSource implements LocationSource {
         private LocationHelper helper;
 
-        private Subscription     suscription;
+        private Disposable       disposable;
         private boolean          activated;
         private int              count;
         private OnLocationHolder holder;
@@ -542,23 +539,16 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         }
 
         private void beginGettingUpdates() {
-            suscription = helper.getLocation().filter(
-                    new Func1<Location, Boolean>() {
+            disposable = helper.getLocation().subscribe(
+                    new Consumer<Location>() {
                         @Override
-                        public Boolean call(Location location) {
-                            return null != location;
-                        }
-                    }
-            ).subscribe(
-                    new Action1<Location>() {
-                        @Override
-                        public void call(Location location) {
+                        public void accept(Location location) {
                             deliverLocation(location);
                         }
                     },
-                    new Action1<Throwable>() {
+                    new Consumer<Throwable>() {
                         @Override
-                        public void call(Throwable throwable) {
+                        public void accept(Throwable throwable) {
                             Log.e(TAG, "Error getting location update", throwable);
                             finishSubscription(false);
                             if (throwable instanceof LocationHelperError && !alwaysRetry) {
@@ -568,9 +558,9 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
                             }
                         }
                     },
-                    new Action0() {
+                    new Action() {
                         @Override
-                        public void call() {
+                        public void run() {
                             finishSubscription(false);
                             scheduleRetry();
                         }
@@ -614,11 +604,11 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
         }
 
         private void finishSubscription(boolean unsubscribe) {
-            if (null != suscription) {
+            if (null != disposable) {
                 if (unsubscribe) {
-                    suscription.unsubscribe();
+                    disposable.dispose();
                 }
-                suscription = null;
+                disposable = null;
             }
         }
 
