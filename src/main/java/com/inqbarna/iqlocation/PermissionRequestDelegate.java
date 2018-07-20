@@ -68,8 +68,13 @@ public class PermissionRequestDelegate {
         return mFragment;
     }
 
-    protected void setCallbacks(PermissionDelegateCallbacks callbacks) {
+    protected void setCallbacks(@NonNull PermissionDelegateCallbacks callbacks) {
         mCallbacks = callbacks;
+    }
+
+    @NonNull
+    protected PermissionDelegateCallbacks getCallbacks() {
+        return mCallbacks;
     }
 
     public void onSaveState(Bundle state) {
