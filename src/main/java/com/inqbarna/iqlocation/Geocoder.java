@@ -9,7 +9,6 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.util.Log;
 import android.util.SparseArray;
 
 import com.google.android.gms.maps.model.LatLng;
@@ -19,6 +18,7 @@ import com.inqbarna.iqlocation.util.GeocoderError;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -47,20 +47,32 @@ public class Geocoder {
         DEBUG_PRINT = enable;
     }
 
-    public static List<Address> getFromLocation(double lat, double lng, int maxResult, String languageCode) {
+    private interface MessageGenerator {
+        String generate();
+    }
+    private static void debugPrint(String fmt, Object ...args) {
+        if (DEBUG_PRINT) {
+            LoggerFactory.getLogger(Geocoder.class).debug(fmt, args);
+        }
+    }
+
+    private static void debugPrint(MessageGenerator generator) {
+        if (DEBUG_PRINT) {
+            LoggerFactory.getLogger(Geocoder.class).debug(generator.generate());
+        }
+    }
+
+    public static List<Address> getFromLocation(double lat, double lng, int maxResult, String languageCode, @NonNull String googleApiKey) {
 
         if (Looper.getMainLooper().equals(Looper.myLooper())) {
             throw new IllegalStateException("Cannot run this method from UI thread");
         }
 
         String address = String.format(
-                Locale.ENGLISH, "http://maps.googleapis.com/maps/api/geocode/json?latlng=%1$f,%2$f&sensor=false&language=" + languageCode,
-                lat, lng);
+                Locale.ENGLISH, "https://maps.googleapis.com/maps/api/geocode/json?latlng=%1$f,%2$f&sensor=false&language=%3$s&key=%4$s",
+                lat, lng, languageCode, googleApiKey);
 
-        if (DEBUG_PRINT) {
-            Log.d(TAG, "Geocoder request: " + address);
-        }
-
+        debugPrint("Geocoder request: " + address);
 
         OkHttpClient client = new OkHttpClient();
 
@@ -68,9 +80,6 @@ public class Geocoder {
 
         builder.get().url(HttpUrl.parse(address));
         final Call call = client.newCall(builder.build());
-
-//        client.getParams().setParameter(AllClientPNames.USER_AGENT, "Mozilla/5.0 (Java) Gecko/20081007 java-geocoder");
-
 
         List<Address> retList = null;
 
@@ -87,16 +96,9 @@ public class Geocoder {
                     for (int i = 0; i < results.length() && i < maxResult; i++) {
                         JSONObject result = results.getJSONObject(i);
 
-                        if (DEBUG_PRINT) {
-                            Log.d(TAG, result.toString());
-                        }
+                        debugPrint(result::toString);
 
                         Address addr = new Address(Locale.getDefault());
-                        /*String formattedAddress = null;
-                        if (result.has("formatted_address")) {
-                            formattedAddress = result.getString("formatted_address");
-                        }
-                        */
 
                         if (result.has("geometry")) {
                             JSONObject geometry = result.getJSONObject("geometry");
@@ -126,27 +128,39 @@ public class Geocoder {
                             JSONArray types = component.getJSONArray("types");
                             for (int j = 0; j < types.length(); j++) {
                                 String type = types.getString(j);
-                                if (type.equals("locality")) {
-                                    addr.setLocality(component.getString("long_name"));
-                                } else if (type.equals("sublocality")) {
-                                    addr.setSubLocality(component.getString("long_name"));
-                                } else if (type.equals("street_number")) {
-                                    streetNumber = component.getString("long_name");
-                                } else if (type.equals("route") || type.equals("street_name")) {
-                                    route = component.getString("long_name");
-                                } else if (type.equals("country")) {
-                                    addr.setCountryCode(component.getString("short_name"));
-                                    addr.setCountryName(component.getString("long_name"));
-                                } else if (type.equals("administrative_area_level_2")) {
-                                    adminAreas.put(1, component.getString("long_name"));
-                                } else if (type.equals("administrative_area_level_1")) {
-                                    adminAreas.put(0, component.getString("long_name"));
-                                } else if (type.equals("administrative_area_level_3")) {
-                                    adminAreas.put(2, component.getString("long_name"));
-                                } else if (type.equals("administrative_area_level_4")) {
-                                    adminAreas.put(3, component.getString("long_name"));
-                                } else if (type.equals("postal_code")) {
-                                    addr.setPostalCode(component.getString("long_name"));
+                                switch (type) {
+                                    case "locality":
+                                        addr.setLocality(component.getString("long_name"));
+                                        break;
+                                    case "sublocality":
+                                        addr.setSubLocality(component.getString("long_name"));
+                                        break;
+                                    case "street_number":
+                                        streetNumber = component.getString("long_name");
+                                        break;
+                                    case "route":
+                                    case "street_name":
+                                        route = component.getString("long_name");
+                                        break;
+                                    case "country":
+                                        addr.setCountryCode(component.getString("short_name"));
+                                        addr.setCountryName(component.getString("long_name"));
+                                        break;
+                                    case "administrative_area_level_2":
+                                        adminAreas.put(1, component.getString("long_name"));
+                                        break;
+                                    case "administrative_area_level_1":
+                                        adminAreas.put(0, component.getString("long_name"));
+                                        break;
+                                    case "administrative_area_level_3":
+                                        adminAreas.put(2, component.getString("long_name"));
+                                        break;
+                                    case "administrative_area_level_4":
+                                        adminAreas.put(3, component.getString("long_name"));
+                                        break;
+                                    case "postal_code":
+                                        addr.setPostalCode(component.getString("long_name"));
+                                        break;
                                 }
                             }
                         }
@@ -172,20 +186,20 @@ public class Geocoder {
             }
 
         } catch (IOException e) {
-            Log.e(TAG, "Error calling Google geocode webservice.", e);
-            throw new GeocoderError("Error calling Google geocode webservice " + e.getMessage(), null); // because somehow stacktrace not printing
+            LoggerFactory.getLogger(Geocoder.class).error("Error calling Google geocode webservice.", e);
+            throw new GeocoderError("Error calling Google geocode webservice " + e.getMessage(), e); // because somehow stacktrace not printing
         } catch (JSONException e) {
-            Log.e(TAG, "Error parsing Google geocode webservice response.", e);
+            LoggerFactory.getLogger(Geocoder.class).error("Error parsing Google geocode webservice response.", e);
             throw new GeocoderError("Error parsing Google geocode webservice response.", e);
         } catch (Exception e) {
-            Log.e(TAG, "Unknown error in geocoder", e);
-            throw new GeocoderError("Unknown error in geocoder" + e.getMessage(), null);
+            LoggerFactory.getLogger(Geocoder.class).error("Unknown error in geocoder", e);
+            throw new GeocoderError("Unknown error in geocoder" + e.getMessage(), e);
         }
 
         return retList;
     }
 
-    public static LocationInfo getLatLngBoundsFromAddress(String addressName, String languageCode) {
+    public static LocationInfo getLatLngBoundsFromAddress(String addressName, String languageCode, @NonNull String googleApiKey) {
 
         if (Looper.getMainLooper().equals(Looper.myLooper())) {
             throw new IllegalStateException("Cannot run this method from UI thread");
@@ -197,10 +211,8 @@ public class Geocoder {
             throw new GeocoderError("Failed encoding place", e);
         }
 
-        String address = "http://maps.googleapis.com/maps/api/geocode/json?address=" + addressName + "&sensor=false&language=" + languageCode;
-        if (DEBUG_PRINT) {
-            Log.d(TAG, "Will request: " + address);
-        }
+        String address = "https://maps.googleapis.com/maps/api/geocode/json?address=" + addressName + "&sensor=false&language=" + languageCode + "&key=" + googleApiKey;
+        debugPrint("Will request: " + address);
 
         OkHttpClient client = new OkHttpClient();
         final Call call = client.newCall(new Request.Builder().get().url(HttpUrl.parse(address)).build());
@@ -212,12 +224,12 @@ public class Geocoder {
             String json = response.body().string();
 
             if (DEBUG_PRINT) {
-                Log.d(TAG, json);
+                debugPrint(json);
             }
 
             JSONObject jsonObject = new JSONObject(json);
 
-            Double neLat = 0.0, neLng = 0.0, swLat = 0.0, swLng = 0.0, lat = 0.0, lng = 0.0;
+            double neLat = 0.0, neLng = 0.0, swLat = 0.0, swLng = 0.0, lat = 0.0, lng = 0.0;
             boolean found = false;
             LatLngBounds bounds = null;
             LatLngBounds viewport = null;
@@ -292,11 +304,11 @@ public class Geocoder {
             }
 
         } catch (IOException e) {
-            Log.e(TAG, "Error calling Google geocode webservice.", e);
-            throw new GeocoderError("Error calling Google geocode webservice. " + e.getMessage());
+            LoggerFactory.getLogger(Geocoder.class).error("Error calling Google geocode webservice.", e);
+            throw new GeocoderError("Error calling Google geocode webservice. " + e.getMessage(), e);
         } catch (JSONException e) {
-            Log.e(TAG, "Error parsing Google geocode webservice response.", e);
-            throw new GeocoderError("Error parsing Google geocode webservice response. " + e.getMessage());
+            LoggerFactory.getLogger(Geocoder.class).error("Error parsing Google geocode webservice response.", e);
+            throw new GeocoderError("Error parsing Google geocode webservice response. " + e.getMessage(), e);
         }
 
         return locationInfo;

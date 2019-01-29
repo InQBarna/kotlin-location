@@ -22,9 +22,15 @@ public class LocationModule {
     private static final long QUICK_FASTEST_INTERVAL = 5 * 1000; // 5 seconds in millis
     private static final long MEDIUM_INTERVAL = 15 * 1000; // 15 seconds in millis
     private Context mContext;
+    private final String googleAPIKey;
 
     public LocationModule(Context context) {
+        this(context, null);
+    }
+
+    public LocationModule(Context context, String googleAPIKey) {
         mContext = context.getApplicationContext();
+        this.googleAPIKey = googleAPIKey;
     }
 
     @Singleton
@@ -35,6 +41,7 @@ public class LocationModule {
                              .setFastestInterval(QUICK_FASTEST_INTERVAL)
                              .setInterval(QUICK_FASTEST_INTERVAL)
                              .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+                             .setGoogleAPIKey(googleAPIKey)
                              .build();
     }
 
@@ -42,7 +49,7 @@ public class LocationModule {
     @Provides
     @BatteryConservativeLocation
     LocationHelper provideBatterySaverLocation() {
-        return LocationHelper.builder(mContext).build();
+        return LocationHelper.builder(mContext).setGoogleAPIKey(googleAPIKey).build();
     }
 
     @Singleton
@@ -53,6 +60,7 @@ public class LocationModule {
                              .setInterval(MEDIUM_INTERVAL)
                              .setFastestInterval(QUICK_FASTEST_INTERVAL)
                              .setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
+                             .setGoogleAPIKey(googleAPIKey)
                              .build();
     }
 
