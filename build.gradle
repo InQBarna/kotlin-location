@@ -33,7 +33,7 @@ dependencies {
     implementation libraries.gms.location
     implementation libraries.gms.maps
     implementation libraries.rxJava2.base
-    implementation libraries.square.okhttp3
+    implementation libraries.okhttp.base
     implementation libraries.slf4j.api
     compileOnly libraries.dagger.base
     kapt libraries.dagger.compiler
