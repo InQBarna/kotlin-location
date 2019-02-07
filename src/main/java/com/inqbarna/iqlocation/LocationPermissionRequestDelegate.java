@@ -10,9 +10,6 @@ import android.content.Intent;
 import android.content.IntentSender;
 import android.content.res.Resources;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
 import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -28,6 +25,10 @@ import com.google.android.gms.location.LocationSettingsStates;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 
 public class LocationPermissionRequestDelegate extends PermissionRequestDelegate {
 
