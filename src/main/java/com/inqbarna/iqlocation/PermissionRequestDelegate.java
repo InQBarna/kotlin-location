@@ -4,11 +4,12 @@ import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.Fragment;
-import android.support.v4.content.ContextCompat;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
 
 /**
  * @author David García <david.garcia@inqbarna.com>
@@ -26,7 +27,7 @@ public class PermissionRequestDelegate {
     private       boolean                     mShown;
     private       PermissionDelegateCallbacks mCallbacks;
     private final Activity                    mContext;
-    private final Fragment                    mFragment;
+    private final Fragment mFragment;
     private       Options                     mOptions;
 
     public void setRequestCodeLocationPermission(int requestCodeLocationPermission) {

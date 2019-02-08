@@ -29,12 +29,12 @@ android {
 }
 
 dependencies {
-    implementation "com.android.support:support-v4:${supportLibsVersion}"
-    implementation "com.google.android.gms:play-services-location:${googlePlayVersion}"
-    implementation "com.google.android.gms:play-services-maps:${googlePlayVersion}"
-    implementation group: 'io.reactivex.rxjava2', name: 'rxjava', version: rxJava2Version
-    implementation "com.squareup.okhttp3:okhttp:${okHttpVersion}"
-    implementation group: 'org.slf4j', name: 'slf4j-api', version: sl4jVersion
-    compileOnly "com.google.dagger:dagger:${daggerVersion}"
-    kapt "com.google.dagger:dagger-compiler:${daggerVersion}"
+    implementation libraries.support.v4
+    implementation libraries.gms.location
+    implementation libraries.gms.maps
+    implementation libraries.rxJava2.base
+    implementation libraries.okhttp.base
+    implementation libraries.slf4j.api
+    compileOnly libraries.dagger.base
+    kapt libraries.dagger.compiler
 }

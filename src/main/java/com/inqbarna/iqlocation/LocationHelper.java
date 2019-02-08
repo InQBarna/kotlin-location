@@ -11,9 +11,6 @@ import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.content.ContextCompat;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -38,6 +35,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import io.reactivex.Observable;
 import io.reactivex.ObservableEmitter;
 import io.reactivex.Scheduler;
@@ -59,7 +59,8 @@ public class LocationHelper implements GoogleApiClient.ConnectionCallbacks {
 
     private GoogleApiClient apiClient;
     private Context         appContext;
-    @Nullable private final String googleApiKey;
+    @Nullable
+    private final String googleApiKey;
 
     private       ArrayList<ObservableEmitter<? super Location>> emitters;
     private       Observable<Location>                           observable;

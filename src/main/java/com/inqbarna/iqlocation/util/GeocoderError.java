@@ -1,6 +1,6 @@
 package com.inqbarna.iqlocation.util;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 /**
  * Created by David García <david.garcia@inqbarna.com> on 6/5/15.
