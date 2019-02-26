@@ -1,0 +1,63 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
+
+android {
+    compileSdkVersion rootProject.ext.compileSdkVersion
+
+    dataBinding {
+        enabled true
+    }
+
+    defaultConfig {
+        applicationId "com.inqbarna.libsamples"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility rootProject.ext.sourceCompatibility
+        targetCompatibility rootProject.ext.targetCompatibility
+    }
+}
+
+dependencies {
+
+    implementation libraries.support.appCompat
+
+    implementation libraries.jake.timber
+
+    testImplementation testLibraries.junit
+    testImplementation testLibraries.mockito.base
+    testImplementation (testLibraries.truth) {
+        exclude group: 'com.google.guava'
+        exclude group: 'com.google.errorprone'
+    }
+
+    androidTestImplementation(testLibraries.espresso, {
+        exclude group: 'com.android.support', module: 'support-annotations'
+    })
+}
+repositories {
+    mavenCentral()
+}

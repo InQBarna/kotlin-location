@@ -1,0 +1,40 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'org.jetbrains.dokka-android'
+
+android {
+    compileSdkVersion rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        consumerProguardFiles 'proguard-rules.pro'
+    }
+    compileOptions {
+        sourceCompatibility rootProject.ext.sourceCompatibility
+        targetCompatibility rootProject.ext.targetCompatibility
+    }
+}
+
+dependencies {
+    implementation libraries.support.v4
+    implementation libraries.gms.location
+    implementation libraries.gms.maps
+    implementation libraries.rxJava2.base
+    implementation libraries.okhttp.base
+    implementation libraries.slf4j.api
+    compileOnly libraries.dagger.base
+    kapt libraries.dagger.compiler
+}
+
+
+
+ext {
+    libraryArtifactId = "rxlocation"
+    libraryVersion = '1.0.0'
+}
+
+apply from: "${rootProject.projectDir}/gradle/publish_lib.gradle"
