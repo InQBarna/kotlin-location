@@ -1,0 +1,150 @@
+ext {
+
+    versions = [
+            appcompatVersion: "1.1.0-alpha02",
+            recyclerviewVersion: "1.0.0",
+            materialVersion: "1.0.0-rc01",
+            legacySupportV4Version: "1.0.0",
+            constraintlayoutVersion: "1.1.3",
+            androidLifecycleVersion: "2.0.0",
+
+            timberVersion: "4.7.0",
+            rxJavaVersion: "1.3.8",
+            daggerVersion: "2.19",
+            rxJava2Version: "2.2.4",
+            rxJava2AndroidVersion: "2.1.0",
+            guavaVersion: "27.0.1-android",
+            reactiveStreamsVersion: "1.0.2",
+            kotlinCoroutinesVersion: "1.0.1",
+
+            retrofitVersion: "2.3.0",
+            okHttpVersion: "3.8.1",
+
+            jUnitVersion: "4.12",
+            powerMockVersion: "2.0.0-beta.5",
+            mockito: "2.12.0",
+            truthVersion: "0.42",
+            robolectricVersion: "4.1",
+            shadowsVersion: "3.7.1",
+            espressoCoreVersion: "3.1.0",
+            runnerVersion: "1.1.0",
+
+            adaptersVersion: "1.0.0"
+    ]
+
+    libraries = [
+            support: [
+                    appCompat:  "androidx.appcompat:appcompat:${versions.appcompatVersion}",
+                    recyclerView: "androidx.recyclerview:recyclerview:${versions.recyclerviewVersion}",
+                    design: "com.google.android.material:material:${versions.materialVersion}",
+                    v4: "androidx.legacy:legacy-support-v4:${versions.legacySupportV4Version}",
+                    v13: "androidx.legacy:legacy-support-v4:${versions.legacySupportV4Version}"
+            ],
+            android: [
+                    constraintLayout: "androidx.constraintlayout:constraintlayout:${versions.constraintlayoutVersion}",
+                    multidex: "androidx.multidex:multidex:2.0.0"
+            ],
+            lifecycle: [
+                    extensions: "androidx.lifecycle:lifecycle-extensions:${versions.androidLifecycleVersion}",
+                    commonJava8: "androidx.lifecycle:lifecycle-common-java8:${versions.androidLifecycleVersion}",
+                    reactiveStreams: "androidx.lifecycle:lifecycle-reactivestreams:${versions.androidLifecycleVersion}"
+            ],
+            guava: [
+                    base: "com.google.guava:guava:${versions.guavaVersion}"
+            ],
+            jake: [
+                    timber: "com.jakewharton.timber:timber:${versions.timberVersion}",
+                    butterKnife: 'com.jakewharton:butterknife:10.0.0',
+                    butterKnifeCompiler: 'com.jakewharton:butterknife-compiler:10.0.0',
+                    time: 'com.jakewharton.threetenabp:threetenabp:1.1.1'
+            ],
+            okhttp: [
+                    base: "com.squareup.okhttp3:okhttp:${versions.okHttpVersion}",
+                    loginInterceptor: "com.squareup.okhttp3:logging-interceptor:${versions.okHttpVersion}"
+            ],
+            retrofit: [
+                    base: "com.squareup.retrofit2:retrofit:${versions.retrofitVersion}",
+                    jackson: "com.squareup.retrofit2:converter-jackson:${versions.retrofitVersion}",
+                    rxJava2: "com.squareup.retrofit2:adapter-rxjava2:${versions.retrofitVersion}",
+            ],
+            image: [
+                    picasso: "com.squareup.picasso:picasso:2.71828"
+            ],
+            rxJava: [
+                    base: "io.reactivex:rxjava:${versions.rxJavaVersion}",
+                    android: 'io.reactivex:rxandroid:1.2.1',
+                    reactiveStreams: "io.reactivex:rxjava-reactive-streams:1.2.1"
+            ],
+            reactiveStreams: "org.reactivestreams:reactive-streams:${versions.reactiveStreamsVersion}",
+            rxJava2: [
+                    base: "io.reactivex.rxjava2:rxjava:${versions.rxJava2Version}",
+                    interop: "com.github.akarnokd:rxjava2-interop:0.13.3",
+                    android: "io.reactivex.rxjava2:rxandroid:${versions.rxJava2AndroidVersion}"
+            ],
+            kotlin: [
+                    jdk8: "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version",
+                    reflect: "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version",
+                    coroutinesRx2: "org.jetbrains.kotlinx:kotlinx-coroutines-rx2:${versions.kotlinCoroutinesVersion}",
+                    coroutinesAndroid: "org.jetbrains.kotlinx:kotlinx-coroutines-android:${versions.kotlinCoroutinesVersion}",
+                    coroutinesCore: "org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions.kotlinCoroutinesVersion}"
+            ],
+            dagger: [
+                    base: "com.google.dagger:dagger:${versions.daggerVersion}",
+                    android: "com.google.dagger:dagger-android:${versions.daggerVersion}",
+                    androidSupport: "com.google.dagger:dagger-android-support:${versions.daggerVersion}",
+                    compiler: "com.google.dagger:dagger-compiler:${versions.daggerVersion}",
+                    androidProcessor: "com.google.dagger:dagger-android-processor:${versions.daggerVersion}"
+            ],
+            gms: [
+                    ads: "com.google.android.gms:play-services-ads:17.1.3",
+                    analytics: "com.google.android.gms:play-services-analytics:16.0.6",
+                    gcm: "com.google.android.gms:play-services-gcm:16.0.0",
+                    location: "com.google.android.gms:play-services-location:16.0.0",
+                    maps: "com.google.android.gms:play-services-maps:16.1.0"
+            ],
+            firebase: [
+                    core: "com.google.firebase:firebase-core:16.0.7",
+                    ads: "com.google.firebase:firebase-ads:17.1.3",
+                    analytics: "com.google.firebase:firebase-analytics:16.3.0",
+                    auth: "com.google.firebase:firebase-auth:16.1.0",
+                    messaging: "com.google.firebase:firebase-messaging:17.3.4",
+                    prefs: "com.google.firebase:firebase-perf:16.2.3"
+            ],
+            util: [
+                    maps: "com.google.maps.android:android-maps-utils:0.5"
+            ],
+            onesignal: [
+                    base: "com.onesignal:OneSignal:3.10.6"
+            ],
+            slf4j: [
+                    api: "org.slf4j:slf4j-api:1.7.25"
+            ],
+            inqbarna: [
+                    adapters: "com.inqbarna.util:adapters:${versions.adaptersVersion}"
+            ],
+            events: [
+                    eventBus: "org.greenrobot:eventbus:3.1.1"
+            ]
+    ]
+
+    testLibraries = [
+            powermock: [
+                    api: "org.powermock:powermock-api-mockito2:${versions.powerMockVersion}",
+                    junit4: "org.powermock:powermock-module-junit4:${versions.powerMockVersion}",
+                    junit4Rule: "org.powermock:powermock-module-junit4-rule:${versions.powerMockVersion}",
+                    classloadingXstream: "org.powermock:powermock-classloading-xstream:${versions.powerMockVersion}",
+            ],
+            mockito: [
+                    base: "org.mockito:mockito-core:${versions.mockito}"
+            ],
+            truth: "com.google.truth:truth:${versions.truthVersion}",
+            robolectric: [
+                    base: "org.robolectric:robolectric:${versions.robolectricVersion}",
+                    shadowsSupport: "org.robolectric:robolectric:${versions.shadowsVersion}",
+                    shadowsMultidex: "org.robolectric:robolectric:${versions.shadowsVersion}",
+            ],
+            junit: "junit:junit:${versions.jUnitVersion}",
+            espresso: "androidx.test.espresso:espresso-core:${versions.espressoCoreVersion}",
+            testRunner: "androidx.test:runner:${versions.runnerVersion}"
+    ]
+}

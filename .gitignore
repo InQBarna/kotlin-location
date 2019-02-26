@@ -1,2 +1,7 @@
-/build
+build/
 *.iml
+.idea/
+.gradle/
+local.properties
+__pycache__
+*.swp
