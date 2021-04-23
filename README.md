@@ -1,12 +1,13 @@
 ## Set up
 
-Include artifact [![rxlocation](https://img.shields.io/badge/dynamic/json.svg?color=blue&label=rxlocation&query=name&url=https%3A%2F%2Fapi.bintray.com%2Fpackages%2Finqbarna-oss%2Futilities%2Frxlocation%2Fversions%2F_latest)](https://bintray.com/inqbarna-oss/utilities/rxlocation/_latestVersion)
+Include artifact ![location-ktx](https://img.shields.io/maven-central/v/com.inqbarna.util/location-ktx?label=location-ktx)
 
-## Rx Wrappers for Fused Location Google APIs
+## Kotlin for Fused Location Google APIs
 
-This library is intened to just add following features:
+This library is intended to just add following features:
 
-- Rx Wrapper amongst Fused Location Google APIs
+- Coroutine adapters to Fused Location Google APIs and Revers geocoding
+- Wrapper to [Reactive Streams](http://www.reactive-streams.org/)
 - Rx Wrapper to request reverse Geocoding from a [Location](https://developer.android.com/reference/android/location/Location.html)
 - Integrated [LocationProvider](https://developer.android.com/reference/android/location/LocationProvider.html) implementation
 
