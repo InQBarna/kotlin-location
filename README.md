@@ -1,6 +1,6 @@
 ## Set up
 
-Include artifact [![rxlocation](https://img.shields.io/badge/dynamic/json.svg?color=blue&label=rxlocation&query=name&url=https%3A%2F%2Fapi.bintray.com%2Fpackages%2Finqbarna-oss%2Futilities%2Frxlocation%2Fversions%2F_latest)](https://bintray.com/inqbarna-oss/utilities/rxlocation/_latestVersion)
+Include artifact ![rxlocation](https://img.shields.io/maven-central/v/com.inqbarna.util/rxlocation?label=rxlocation)
 
 ## Rx Wrappers for Fused Location Google APIs
 
