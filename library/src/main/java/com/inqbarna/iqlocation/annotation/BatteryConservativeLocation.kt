@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 InQBarna Kenkyuu Jo SL
+ * Copyright 2021 InQBarna Kenkyuu Jo SL
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,27 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.inqbarna.iqlocation.annotation
 
-
-package com.inqbarna.iqlocation.util;
-
-import androidx.annotation.NonNull;
+import javax.inject.Qualifier
 
 /**
- * Created by David García <david.garcia@inqbarna.com> on 6/5/15.
+ * @author David García (david.garcia>@inqbarna.com)
+ * @version 1.0 30/11/16
  */
-public class GeocoderError extends Error {
-
-
-    private String serviceStatus;
-
-    public GeocoderError(@NonNull String serviceStatus) {
-        super("Google API error status: " + serviceStatus);
-        this.serviceStatus = serviceStatus;
-    }
-
-    public GeocoderError(String message, Throwable throwable) {
-        super(message, throwable);
-    }
-
-}
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class BatteryConservativeLocation

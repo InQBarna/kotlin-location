@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 InQBarna Kenkyuu Jo SL
+ * Copyright 2021 InQBarna Kenkyuu Jo SL
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,21 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
-package com.inqbarna.iqlocation.util;
+package com.inqbarna.iqlocation.util
 
 /**
- * Created by David García <david.garcia@inqbarna.com> on 6/5/15.
+ * Error management policy customizations can be done providing with custom
+ * implementation of this interface at [com.inqbarna.iqlocation.LocationHelper.setGlobalErrorWatch]
  */
-public interface ErrorHandler {
+interface ErrorHandler {
     /**
-     * This method will be called with an instance of {@link com.inqbarna.iqlocation.util.GeocoderError},
+     * This method will be called with an instance of [com.inqbarna.iqlocation.util.GeocoderError],
      * if returning true error won't be notyfied further, but empty Address list will be given instead, returning false
      * the error will be delivered to the end of the chain.
      *
      * @param error the error object
      * @return true to stop propagation of error
      */
-    boolean chanceToInterceptGeocoderError(GeocoderError error);
+    fun chanceToInterceptGeocoderError(error: GeocoderError): Boolean
 }

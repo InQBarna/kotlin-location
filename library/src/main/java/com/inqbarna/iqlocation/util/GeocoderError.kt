@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 InQBarna Kenkyuu Jo SL
+ * Copyright 2021 InQBarna Kenkyuu Jo SL
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,20 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
-package com.inqbarna.iqlocation.annotation;
-
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-
-import javax.inject.Qualifier;
+package com.inqbarna.iqlocation.util
 
 /**
- * @author David García <david.garcia@inqbarna.com>
- * @version 1.0 1/12/16
+ * Error originated at Geocoder
  */
-@Qualifier
-@Retention(RetentionPolicy.CLASS)
-public @interface IntermediateLocation {
+class GeocoderError private constructor(val serviceStatus: String?, message: String?, throwable: Throwable?) : Error(message, throwable) {
+
+    constructor(serviceStatus: String) : this(serviceStatus, "Google API error status: $serviceStatus", null)
+    constructor(msg: String, throwable: Throwable?) : this(null, msg, throwable)
 }

@@ -5,8 +5,9 @@ apply plugin: 'kotlin-kapt'
 android {
     compileSdkVersion rootProject.ext.compileSdkVersion
 
-    dataBinding {
-        enabled true
+    buildFeatures {
+        viewBinding true
+        dataBinding true
     }
 
     defaultConfig {
@@ -46,6 +47,10 @@ dependencies {
     implementation libraries.support.appCompat
 
     implementation libraries.jake.timber
+    implementation "at.favre.lib:slf4j-timber:1.0.0"
+    implementation "androidx.startup:startup-runtime:1.0.0"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.3.1"
+    implementation project(":library")
 
     testImplementation testLibraries.junit
     testImplementation testLibraries.mockito.base

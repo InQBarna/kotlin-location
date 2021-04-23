@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 InQBarna Kenkyuu Jo SL
+ * Copyright 2021 InQBarna Kenkyuu Jo SL
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,20 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package com.inqbarna.iqlocation.annotation
 
-
-package com.inqbarna.iqlocation.annotation;
-
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-
-import javax.inject.Qualifier;
+import javax.inject.Qualifier
 
 /**
- * @author David García <david.garcia@inqbarna.com>
- * @version 1.0 30/11/16
+ * @author David García (david.garcia>@inqbarna.com)
+ * @version 1.0 1/12/16
  */
 @Qualifier
-@Retention(RetentionPolicy.CLASS)
-public @interface FastLocation {
-}
+@Retention(AnnotationRetention.BINARY)
+annotation class IntermediateLocation
