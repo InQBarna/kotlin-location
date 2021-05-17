@@ -13,54 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@file:JvmName("LocationFactories")
 package com.inqbarna.iqlocation
 
 import android.content.Context
 import com.google.android.gms.location.LocationRequest
-import com.inqbarna.iqlocation.annotation.BatteryConservativeLocation
-import com.inqbarna.iqlocation.annotation.FastLocation
-import com.inqbarna.iqlocation.annotation.IntermediateLocation
-import dagger.Module
-import dagger.Provides
-import javax.inject.Singleton
 
 /**
  * @author David García <david.garcia></david.garcia>@inqbarna.com>
  * @version 1.0 30/11/16
  */
-@Module
-class LocationModule @JvmOverloads constructor(
+private class LocationHelperDefaultFactory(
     context: Context,
     private val googleAPIKey: String? = null
-) {
+) : LocationHelperFactory {
     private val context: Context = context.applicationContext
 
-    @Singleton
-    @Provides
-    @FastLocation
-    fun provideFastLocation(): LocationHelper = with(LocationHelper.builder(context)) {
-        setFastestInterval(QUICK_FASTEST_INTERVAL)
-        setInterval(QUICK_FASTEST_INTERVAL)
-        setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-        googleAPIKey?.let { setGoogleAPIKey(it) }
-        build()
-    }
-
-    @Singleton
-    @Provides
-    @BatteryConservativeLocation
-    fun provideBatterySaverLocation(): LocationHelper = with (LocationHelper.builder(context)) {
-        googleAPIKey?.let { setGoogleAPIKey(it) }
-        build()
-    }
-
-    @Singleton
-    @Provides
-    @IntermediateLocation
-    fun provideIntermediateRequestLocation(): LocationHelper = with (LocationHelper.builder(context)) {
+    override fun createIntermediateLocationHelper(): LocationHelper = with (LocationHelper.builder(context)) {
         setInterval(MEDIUM_INTERVAL)
         setFastestInterval(QUICK_FASTEST_INTERVAL)
         setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY)
+        googleAPIKey?.let { setGoogleAPIKey(it) }
+        build()
+    }
+
+    override fun createBatterySaverLocationHelper(): LocationHelper = with (LocationHelper.builder(context)) {
+        googleAPIKey?.let { setGoogleAPIKey(it) }
+        build()
+    }
+
+    override fun createFastLocationHelper(): LocationHelper = with(LocationHelper.builder(context)) {
+        setFastestInterval(QUICK_FASTEST_INTERVAL)
+        setInterval(QUICK_FASTEST_INTERVAL)
+        setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
         googleAPIKey?.let { setGoogleAPIKey(it) }
         build()
     }
@@ -69,4 +54,28 @@ class LocationModule @JvmOverloads constructor(
         private const val QUICK_FASTEST_INTERVAL = (5 * 1000L) // 5 seconds in millis
         private const val MEDIUM_INTERVAL = (15 * 1000L) // 15 seconds in millis
     }
+}
+
+@JvmOverloads
+fun defaultLocationFactory(context: Context, googleAPIKey: String? = null): LocationHelperFactory = LocationHelperDefaultFactory(context, googleAPIKey)
+
+interface LocationHelperFactory {
+    /**
+     * Creates a [LocationHelper] with tradeoff values between quick updates, and
+     * battery saving
+     */
+    fun createIntermediateLocationHelper(): LocationHelper
+
+    /**
+     * Creates a [LocationHelper] with lowest battery consumption attribution for the app, but also very slow updates.
+     *
+     * (Will only get updates if some other app uses FusedApi to get location)
+     */
+    fun createBatterySaverLocationHelper(): LocationHelper
+
+    /**
+     * Location helper with default setup for the fastests location updates. This is the most battery
+     * consuming configuration
+     */
+    fun createFastLocationHelper(): LocationHelper
 }
