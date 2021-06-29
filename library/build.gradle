@@ -31,7 +31,7 @@ dependencies {
     api "com.google.android.gms:play-services-location:18.0.0"
     api "com.google.android.gms:play-services-maps:17.0.1"
 
-    implementation platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.4.3")
+    implementation platform("org.jetbrains.kotlinx:kotlinx-coroutines-bom:1.5.0")
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-reactive"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android"
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services'
@@ -48,7 +48,7 @@ ext {
     libraryPomName = "Ktx Location"
     libraryPomDescription = "Ktx Location utils"
     libraryArtifactId = "location-ktx"
-    libraryVersion = '2.0.1'
+    libraryVersion = '2.0.2'
 }
 
 apply from: "${rootProject.projectDir}/gradle/publish_lib.gradle"
